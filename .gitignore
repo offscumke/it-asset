@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.playwright-cli/
+__pycache__/
+*.pyc
+
+server/node_modules/
+server/*.db
+server/*.db-shm
+server/*.db-wal
+data/
+backups/
+
+agent/build/
+agent/dist/
+agent-deploy/macos/it-asset-agent
+agent-deploy/windows/*.exe

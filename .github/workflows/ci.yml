@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --prefix server
+      - run: npm run check --prefix server
+      - run: npm audit --omit=dev --prefix server
+      - run: bash -n scripts/deploy.sh scripts/backup.sh scripts/import-db.sh
+      - run: docker compose --env-file .env.example config --quiet
+      - run: docker build --tag it-asset:ci .

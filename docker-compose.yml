@@ -1,0 +1,35 @@
+services:
+  it-asset:
+    build:
+      context: .
+    image: it-asset:${IMAGE_TAG:-latest}
+    init: true
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-3001}:3001"
+    volumes:
+      - it_asset_data:/data
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_PATH: /data/assets.db
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASS: ${ADMIN_PASS:?ADMIN_PASS is required}
+      AGENT_SECRET: ${AGENT_SECRET:?AGENT_SECRET is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  it_asset_data:

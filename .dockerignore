@@ -1,0 +1,8 @@
+*
+!Dockerfile
+!server/
+!server/package.json
+!server/package-lock.json
+!server/index.js
+!frontend/
+!frontend/*.html

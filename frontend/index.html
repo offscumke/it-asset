@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IT 资产管理系统</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-box{background:#1a1d2e;border:1px solid #2d3348;border-radius:16px;padding:40px;width:360px}
+.login-box h1{font-size:20px;font-weight:700;color:#7c85f3;margin-bottom:8px;text-align:center}
+.login-box p{font-size:13px;color:#64748b;text-align:center;margin-bottom:28px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.form-group input{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:8px;padding:10px 14px;color:#e2e8f0;font-size:14px;outline:none}
+.form-group input:focus{border-color:#7c85f3}
+.btn-login{width:100%;background:#7c85f3;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
+.btn-login:hover{opacity:.85}
+.login-err{color:#f87171;font-size:13px;text-align:center;margin-top:12px;min-height:20px}
+#app{display:none}
+header{background:#1a1d2e;padding:14px 24px;border-bottom:1px solid #2d3348;display:flex;align-items:center;gap:16px}
+header h1{font-size:17px;font-weight:600;color:#7c85f3}
+header .spacer{flex:1}
+.nav{display:flex;gap:4px}
+.nav button{background:none;border:none;color:#94a3b8;padding:8px 16px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:500}
+.nav button.active{background:#7c85f3;color:#fff}
+.nav button:hover:not(.active){background:#1e2235}
+.user-badge{font-size:12px;color:#64748b}
+.btn-logout{background:#2d3348;color:#e2e8f0;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer}
+.container{padding:24px;max-width:1440px;margin:0 auto}
+.tab-page{display:none}
+.tab-page.active{display:block}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:#1a1d2e;border:1px solid #2d3348;border-radius:10px;padding:20px}
+.stat-card .label{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+.stat-card .value{font-size:28px;font-weight:700;margin-top:4px;color:#7c85f3}
+.toolbar{display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap}
+.toolbar input,.toolbar select{background:#1a1d2e;border:1px solid #2d3348;border-radius:8px;padding:10px 14px;color:#e2e8f0;font-size:14px;outline:none}
+.toolbar input.grow{flex:1;min-width:200px}
+.toolbar input:focus{border-color:#7c85f3}
+table{width:100%;border-collapse:collapse;background:#1a1d2e;border-radius:10px;overflow:hidden;border:1px solid #2d3348}
+thead tr{background:#1e2235}
+th{padding:11px 14px;text-align:left;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #2d3348}
+td{padding:11px 14px;font-size:13px;border-bottom:1px solid #1e2235;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#1e2235}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.badge.online{background:#0f2a1a;color:#34d399;border:1px solid #065f46}
+.badge.offline{background:#1f1515;color:#f87171;border:1px solid #7f1d1d}
+.badge.win{background:#0a2040;color:#60a5fa}
+.badge.mac{background:#25152a;color:#c084fc}
+.badge.open{background:#0f2a1a;color:#34d399}
+.badge.closed{background:#2d3348;color:#94a3b8}
+.badge.done{background:#0f2a1a;color:#34d399}
+.badge.miss{background:#2a1f0f;color:#f59e0b}
+.btn{cursor:pointer;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:500}
+.btn-vnc{background:#7c85f3;color:#fff}
+.btn-del{background:#3d1a1a;color:#f87171;margin-left:4px}
+.btn-detail{background:#1e2a1e;color:#34d399}
+.btn-edit{background:#1a2540;color:#60a5fa;margin-left:4px}
+.btn-qr{background:#2a1f3d;color:#c084fc;margin-left:4px}
+.btn-refresh{background:#2d3348;color:#e2e8f0}
+.btn-primary{background:#7c85f3;color:#fff;padding:10px 18px;font-size:14px}
+.btn-export{background:#0f2a1a;color:#34d399;border:1px solid #065f46;padding:10px 16px;font-size:13px}
+.progress{background:#2d3348;border-radius:4px;height:5px;margin-top:4px;min-width:90px}
+.progress-bar{height:100%;border-radius:4px;background:#7c85f3;transition:width .4s}
+.progress-bar.warn{background:#f59e0b}.progress-bar.danger{background:#ef4444}
+.empty{text-align:center;padding:60px;color:#64748b;font-size:14px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:100}
+.modal-bg.open{display:flex}
+.modal{background:#1a1d2e;border:1px solid #2d3348;border-radius:14px;padding:28px;width:640px;max-height:82vh;overflow-y:auto}
+.modal h2{font-size:16px;font-weight:600;margin-bottom:20px;color:#7c85f3;display:flex;align-items:center;gap:8px}
+.modal .close{margin-left:auto;background:none;border:none;color:#64748b;font-size:20px;cursor:pointer}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.info-item .key{font-size:11px;color:#64748b;text-transform:uppercase}
+.info-item .val{font-size:14px;margin-top:3px;color:#e2e8f0;font-weight:500;word-break:break-all}
+.info-item input{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:6px;padding:8px;color:#e2e8f0;font-size:13px;margin-top:3px;outline:none}
+.sw-list{margin-top:20px}
+.sw-list h3{font-size:11px;color:#64748b;text-transform:uppercase;margin-bottom:10px}
+.sw-search{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:6px;padding:7px 12px;color:#e2e8f0;font-size:13px;outline:none;margin-bottom:10px}
+.sw-scroll{max-height:200px;overflow-y:auto}
+.sw-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3348;font-size:13px}
+.sw-ver{color:#64748b;font-size:11px}
+.qr-box{text-align:center;padding:10px}
+.qr-box img{background:#fff;padding:10px;border-radius:10px;width:260px;height:260px}
+.qr-box p{margin-top:12px;font-size:13px;color:#64748b}
+.toast{position:fixed;right:20px;bottom:20px;z-index:200;max-width:360px;padding:12px 16px;border-radius:8px;background:#0f2a1a;border:1px solid #065f46;color:#34d399;font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.35);opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.error{background:#3d1a1a;border-color:#7f1d1d;color:#f87171}
+</style>
+</head>
+<body>
+<div class="login-wrap" id="login-page">
+  <div class="login-box">
+    <div style="text-align:center;font-size:40px;margin-bottom:12px">🖥</div>
+    <h1>IT 资产管理系统</h1>
+    <p>请使用管理员账号登录</p>
+    <div class="form-group"><label>用户名</label>
+      <input id="l-user" type="text" value="admin" autocomplete="username"></div>
+    <div class="form-group"><label>密码</label>
+      <input id="l-pass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn-login" onclick="doLogin()">登 录</button>
+    <div class="login-err" id="l-err"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div style="width:30px;height:30px;background:#7c85f3;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px">🖥</div>
+    <h1>IT 资产管理</h1>
+    <div class="nav">
+      <button id="tab-assets" class="active" onclick="switchTab('assets')">资产清单</button>
+      <button id="tab-inventory" onclick="switchTab('inventory')">盘点管理</button>
+    </div>
+    <div class="spacer"></div>
+    <span class="user-badge" id="user-badge"></span>
+    <button class="btn-logout" onclick="logout()">退出</button>
+  </header>
+  <div class="container">
+
+    <!-- ASSETS TAB -->
+    <div class="tab-page active" id="page-assets">
+      <div class="stats">
+        <div class="stat-card"><div class="label">总资产</div><div class="value" id="s-total">0</div></div>
+        <div class="stat-card"><div class="label">在线</div><div class="value" style="color:#34d399" id="s-online">0</div></div>
+        <div class="stat-card"><div class="label">Windows</div><div class="value" style="color:#60a5fa" id="s-win">0</div></div>
+        <div class="stat-card"><div class="label">macOS</div><div class="value" style="color:#c084fc" id="s-mac">0</div></div>
+      </div>
+      <div class="toolbar">
+        <input class="grow" id="search" placeholder="搜索主机名、IP、CPU、位置…" oninput="filterAssets()">
+        <button class="btn btn-refresh" onclick="loadAssets()">↻ 刷新</button>
+        <button class="btn-export" onclick="exportAssets()">⬇ 导出资产 CSV</button>
+      </div>
+      <table>
+        <thead><tr>
+          <th>状态</th><th>主机名</th><th>平台</th><th>IP</th><th>CPU</th>
+          <th>内存</th><th>位置</th><th>部门</th><th>最后在线</th><th>操作</th>
+        </tr></thead>
+        <tbody id="asset-table"></tbody>
+      </table>
+    </div>
+
+    <!-- INVENTORY TAB -->
+    <div class="tab-page" id="page-inventory">
+      <div class="toolbar">
+        <input class="grow" id="new-session" placeholder="新建盘点场次名称，如：2026 Q3 全公司盘点">
+        <button class="btn-primary" onclick="createSession()">+ 新建盘点</button>
+      </div>
+      <table>
+        <thead><tr><th>盘点场次</th><th>状态</th><th>已盘点</th><th>创建人</th><th>创建时间</th><th>操作</th></tr></thead>
+        <tbody id="session-table"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h2><span id="modal-icon">🖥</span><span id="modal-name">详情</span>
+      <button class="close" onclick="closeModal()">✕</button></h2>
+    <div id="modal-body"></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+let token = localStorage.getItem('it_token') || '';
+let allAssets = [];
+let currentInventory = null;
+let toastTimer = null;
+
+function showToast(message, error=false) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'toast show' + (error ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.className = 'toast'; }, 3000);
+}
+
+function doLogin() {
+  const u = document.getElementById('l-user').value.trim();
+  const p = document.getElementById('l-pass').value;
+  document.getElementById('l-err').textContent = '';
+  fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username:u,password:p}) })
+    .then(async r => {
+      const d = await r.json();
+      if (!r.ok) { document.getElementById('l-err').textContent = d.error||'登录失败'; return; }
+      token = d.token; localStorage.setItem('it_token', token); showApp(u);
+    }).catch(()=>document.getElementById('l-err').textContent='无法连接服务器');
+}
+
+function showApp(username) {
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('user-badge').textContent = '👤 '+(username||'');
+  loadAssets();
+}
+
+function logout() {
+  token=''; localStorage.removeItem('it_token'); allAssets=[];
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-page').style.display='flex';
+  document.getElementById('l-pass').value='';
+}
+
+async function apiFetch(path, opts={}) {
+  const r = await fetch(path, { ...opts,
+    cache:'no-store',
+    headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json',...(opts.headers||{})} });
+  if (r.status===401) { logout(); return null; }
+  return r;
+}
+
+function switchTab(tab) {
+  document.getElementById('tab-assets').classList.toggle('active', tab==='assets');
+  document.getElementById('tab-inventory').classList.toggle('active', tab==='inventory');
+  document.getElementById('page-assets').classList.toggle('active', tab==='assets');
+  document.getElementById('page-inventory').classList.toggle('active', tab==='inventory');
+  if (tab==='inventory') loadSessions();
+}
+
+function isOnline(l){ return l && (Date.now()-new Date(l+'Z').getTime())<3e5; }
+function fmtBytes(b){ if(!b)return '—'; return b>1e9?(b/1e9).toFixed(1)+' GB':(b/1e6).toFixed(0)+' MB'; }
+function fmtDate(d){ return d?new Date(d+'Z').toLocaleString('zh-CN'):'—'; }
+function pct(u,t){ return t?Math.round(u/t*100):0; }
+function bar(p){ const c=p>90?'danger':p>70?'warn':''; return `<div class="progress"><div class="progress-bar ${c}" style="width:${p}%"></div></div>`; }
+async function loadAssets() {
+  const r = await apiFetch('/api/assets'); if (!r) return;
+  allAssets = await r.json();
+  renderAssets(allAssets);
+}
+
+function filterAssets() {
+  const q = document.getElementById('search').value.toLowerCase();
+  renderAssets(allAssets.filter(a =>
+    (a.hostname||'').toLowerCase().includes(q) || (a.ip||'').includes(q) ||
+    (a.cpu||'').toLowerCase().includes(q) || (a.location||'').toLowerCase().includes(q) ||
+    (a.department||'').toLowerCase().includes(q)));
+}
+
+function renderAssets(assets) {
+  document.getElementById('s-total').textContent = assets.length;
+  document.getElementById('s-online').textContent = assets.filter(a=>isOnline(a.last_seen)).length;
+  document.getElementById('s-win').textContent = assets.filter(a=>a.platform==='windows').length;
+  document.getElementById('s-mac').textContent = assets.filter(a=>a.platform==='darwin').length;
+  if (!assets.length) {
+    document.getElementById('asset-table').innerHTML='<tr><td colspan="10" class="empty">暂无资产</td></tr>'; return;
+  }
+  document.getElementById('asset-table').innerHTML = assets.map(a=>{
+    const on=isOnline(a.last_seen);
+    const ru=(a.ram_total||0)-(a.ram_free||0);
+    const plat=a.platform==='darwin'?'<span class="badge mac">🍎 macOS</span>':'<span class="badge win">🪟 Win</span>';
+    return `<tr>
+      <td><span class="badge ${on?'online':'offline'}">${on?'● 在线':'○ 离线'}</span></td>
+      <td><strong>${a.hostname||'—'}</strong></td>
+      <td>${plat}</td>
+      <td style="font-family:monospace;font-size:12px">${a.ip||'—'}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.cpu||''}">${a.cpu||'—'}</td>
+      <td style="min-width:100px">${fmtBytes(ru)}/${fmtBytes(a.ram_total)}${bar(pct(ru,a.ram_total))}</td>
+      <td>${a.location||'<span style="color:#64748b">未设置</span>'}</td>
+      <td>${a.department||'—'}</td>
+      <td style="font-size:11px;color:#64748b;white-space:nowrap">${fmtDate(a.last_seen)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-detail" onclick="showDetail('${a.id}')">详情</button>
+        <button class="btn btn-edit" onclick="editAsset('${a.id}')">编辑</button>
+        <button class="btn btn-qr" onclick="showQR('${a.id}','${a.hostname}')">QR</button>
+        <button class="btn btn-vnc" onclick="launchVNC('${a.ip}',${a.vnc_port||5900})">VNC</button>
+        <button class="btn btn-del" onclick="deleteAsset('${a.id}','${a.hostname}')">删</button>
+      </td></tr>`;
+  }).join('');
+}
+
+async function showDetail(id) {
+  const r = await apiFetch(`/api/assets/${id}`); if(!r) return;
+  const a = await r.json();
+  const ru=(a.ram_total||0)-(a.ram_free||0), du=(a.disk_total||0)-(a.disk_free||0);
+  document.getElementById('modal-name').textContent=a.hostname;
+  document.getElementById('modal-icon').textContent=a.platform==='darwin'?'🍎':'🪟';
+  let sw='';
+  if(a.software&&a.software.length){
+    sw=`<div class="sw-list"><h3>已安装软件 (${a.software.length})</h3>
+      <input class="sw-search" placeholder="搜索软件…" oninput="filterSW(this)" data-sw='${JSON.stringify(a.software).replace(/'/g,"&#39;")}'>
+      <div class="sw-scroll" id="sw-scroll">${a.software.map(s=>`<div class="sw-item"><span>${s.name}</span><span class="sw-ver">${s.version||''}</span></div>`).join('')}</div></div>`;
+  }
+  document.getElementById('modal-body').innerHTML=`<div class="info-grid">
+    <div class="info-item"><div class="key">IP</div><div class="val">${a.ip||'—'}</div></div>
+    <div class="info-item"><div class="key">MAC</div><div class="val" style="font-size:12px">${a.mac_address||'—'}</div></div>
+    <div class="info-item"><div class="key">操作系统</div><div class="val">${a.os||'—'} ${a.os_version||''}</div></div>
+    <div class="info-item"><div class="key">CPU</div><div class="val">${a.cpu||'—'} (${a.cpu_cores||'?'}核)</div></div>
+    <div class="info-item"><div class="key">内存</div><div class="val">${fmtBytes(ru)}/${fmtBytes(a.ram_total)}</div>${bar(pct(ru,a.ram_total))}</div>
+    <div class="info-item"><div class="key">磁盘</div><div class="val">${fmtBytes(du)}/${fmtBytes(a.disk_total)}</div>${bar(pct(du,a.disk_total))}</div>
+    <div class="info-item"><div class="key">位置</div><div class="val">${a.location||'未设置'}</div></div>
+    <div class="info-item"><div class="key">部门</div><div class="val">${a.department||'—'}</div></div>
+    <div class="info-item"><div class="key">资产标签</div><div class="val">${a.asset_tag||'—'}</div></div>
+    <div class="info-item"><div class="key">最后在线</div><div class="val">${fmtDate(a.last_seen)}</div></div>
+  </div>${sw}`;
+  document.getElementById('modal').classList.add('open');
+}
+
+function filterSW(input){
+  const q=input.value.toLowerCase(), sw=JSON.parse(input.dataset.sw);
+  document.getElementById('sw-scroll').innerHTML=sw.filter(s=>s.name.toLowerCase().includes(q))
+    .map(s=>`<div class="sw-item"><span>${s.name}</span><span class="sw-ver">${s.version||''}</span></div>`).join('')||'<div style="color:#64748b;padding:10px 0">无匹配</div>';
+}
+function editAsset(id) {
+  const a = allAssets.find(x=>x.id===id); if(!a) return;
+  document.getElementById('modal-name').textContent='编辑 '+a.hostname;
+  document.getElementById('modal-icon').textContent='✏️';
+  document.getElementById('modal-body').innerHTML=`<div class="info-grid">
+    <div class="info-item"><div class="key">位置</div><input id="e-loc" value="${a.location||''}" placeholder="如：3楼A区 A12"></div>
+    <div class="info-item"><div class="key">部门</div><input id="e-dept" value="${a.department||''}" placeholder="如：研发部"></div>
+    <div class="info-item"><div class="key">资产标签</div><input id="e-tag" value="${a.asset_tag||''}" placeholder="如：IT-2026-001"></div>
+  </div>
+  <button class="btn-primary" style="margin-top:20px;width:100%" onclick="saveAsset('${id}')">保存</button>`;
+  document.getElementById('modal').classList.add('open');
+}
+
+async function saveAsset(id) {
+  await apiFetch(`/api/assets/${id}`, { method:'PATCH', body: JSON.stringify({
+    location: document.getElementById('e-loc').value,
+    department: document.getElementById('e-dept').value,
+    asset_tag: document.getElementById('e-tag').value }) });
+  closeModal(); loadAssets();
+}
+
+function showQR(id, hostname) {
+  document.getElementById('modal-name').textContent='资产二维码';
+  document.getElementById('modal-icon').textContent='🔳';
+  document.getElementById('modal-body').innerHTML=`<div class="qr-box">
+    <img src="/api/assets/${id}/qr" alt="QR" onerror="this.src=''">
+    <p><strong>${hostname}</strong></p>
+    <p>打印贴到设备上，用手机扫码即可盘点</p>
+    <button class="btn-primary" style="margin-top:12px" onclick="window.open('/api/assets/${id}/qr')">下载/打印二维码</button>
+  </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+function launchVNC(ip,port){ if(confirm(`通过 VNC 连接到 ${ip}:${port}？\n请确保目标机已启用 VNC。`)) location.href=`vnc://${ip}:${port}`; }
+async function deleteAsset(id,h) {
+  if(!confirm(`删除资产 "${h}"？\n\n该设备的 Agent 若仍在运行，下次上报时会重新加入。`)) return;
+  try {
+    const r = await apiFetch(`/api/assets/${id}`, { method:'DELETE' });
+    if(!r) return;
+    const data = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(data.error || '删除失败');
+    allAssets = allAssets.filter(a => a.id !== id);
+    renderAssets(allAssets);
+    showToast(`已删除资产：${h}`);
+  } catch (error) {
+    showToast(error.message || '删除失败，请稍后重试', true);
+  }
+}
+
+async function downloadWithAuth(url, filename) {
+  try {
+    const r = await apiFetch(url); if(!r) return;
+    if(!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      throw new Error(data.error || '导出失败');
+    }
+    const blob = await r.blob();
+    if(!blob.size) throw new Error('导出文件为空');
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
+    showToast(`已导出：${filename}`);
+  } catch (error) {
+    showToast(error.message || '导出失败，请稍后重试', true);
+  }
+}
+function exportAssets(){ downloadWithAuth('/api/reports/assets.csv','assets.csv'); }
+
+// ── Inventory ──
+async function loadSessions() {
+  const r = await apiFetch('/api/inventory'); if(!r) return;
+  const sessions = await r.json();
+  if (!sessions.length) {
+    document.getElementById('session-table').innerHTML='<tr><td colspan="6" class="empty">暂无盘点场次，点上方新建</td></tr>'; return;
+  }
+  document.getElementById('session-table').innerHTML = sessions.map(s=>`<tr>
+    <td><strong>${s.name}</strong></td>
+    <td><span class="badge ${s.status==='open'?'open':'closed'}">${s.status==='open'?'进行中':'已关闭'}</span></td>
+    <td>${s.total} 台</td>
+    <td>${s.created_by||'—'}</td>
+    <td style="font-size:12px;color:#64748b">${fmtDate(s.created_at)}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-detail" onclick="openSession('${s.id}','${s.name}')">查看进度</button>
+      <button class="btn btn-qr" onclick="copyScanLink('${s.id}')">扫码链接</button>
+      <button class="btn btn-edit" onclick="downloadWithAuth('/api/reports/inventory/${s.id}.csv','盘点-${s.name}.csv')">导出</button>
+      ${s.status==='open'?`<button class="btn btn-vnc" onclick="closeSession('${s.id}')">结束</button>`:''}
+      <button class="btn btn-del" onclick="deleteSession('${s.id}','${s.name}')">删</button>
+    </td></tr>`).join('');
+}
+
+async function createSession() {
+  const name = document.getElementById('new-session').value.trim();
+  if (!name) { alert('请输入盘点场次名称'); return; }
+  await apiFetch('/api/inventory',{method:'POST',body:JSON.stringify({name})});
+  document.getElementById('new-session').value=''; loadSessions();
+}
+
+async function closeSession(id) {
+  if(!confirm('结束此盘点场次？结束后不能再扫码。')) return;
+  try {
+    const r = await apiFetch(`/api/inventory/${id}/close`, { method:'PATCH' });
+    if(!r) return;
+    const data = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(data.error || '结束盘点失败');
+    await loadSessions();
+    showToast(data.already_closed ? '该盘点已经结束' : '盘点已结束');
+  } catch (error) {
+    showToast(error.message || '结束盘点失败，请稍后重试', true);
+  }
+}
+async function deleteSession(id,n){ if(!confirm(`删除盘点场次 "${n}"？记录一并删除。`))return; await apiFetch(`/api/inventory/${id}`,{method:'DELETE'}); loadSessions(); }
+
+function copyScanLink(id){
+  const url = `${location.origin}/scan?session=${id}`;
+  navigator.clipboard?.writeText(url).then(()=>alert('扫码盘点链接已复制:\n'+url+'\n\n用手机打开即可扫码盘点'),()=>prompt('复制此链接用手机打开:',url));
+}
+
+async function openSession(id, name) {
+  currentInventory = id;
+  const [statsR, recR] = await Promise.all([
+    apiFetch(`/api/inventory/${id}/stats`), apiFetch(`/api/inventory/${id}/records`)]);
+  if(!statsR||!recR) return;
+  const stats = await statsR.json(); const records = await recR.json();
+  document.getElementById('modal-name').textContent = name;
+  document.getElementById('modal-icon').textContent='📋';
+  const scannedIds = new Set(records.map(r=>r.asset_id));
+  const missing = allAssets.filter(a=>!scannedIds.has(a.id));
+  document.getElementById('modal-body').innerHTML=`
+    <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+      <div class="stat-card"><div class="label">资产总数</div><div class="value">${stats.total}</div></div>
+      <div class="stat-card"><div class="label">已盘点</div><div class="value" style="color:#34d399">${stats.scanned}</div></div>
+      <div class="stat-card"><div class="label">未盘点</div><div class="value" style="color:#f59e0b">${stats.missing}</div></div>
+    </div>
+    ${bar(pct(stats.scanned,stats.total))}
+    <div style="margin:12px 0"><button class="btn-export" onclick="downloadWithAuth('/api/reports/inventory/${id}.csv','盘点-${name}.csv')">⬇ 导出盘点报表 CSV</button>
+    <button class="btn-primary" style="margin-left:8px" onclick="copyScanLink('${id}')">📱 扫码链接</button></div>
+    <div class="sw-list"><h3>已盘点 (${records.length})</h3><div class="sw-scroll">
+      ${records.map(r=>`<div class="sw-item"><span>✅ ${r.hostname} <span style="color:#64748b">· ${r.scanned_location||r.asset_location||'无位置'}</span></span><span class="sw-ver">${r.scanned_by||''} ${fmtDate(r.scanned_at)}</span></div>`).join('')||'<div style="color:#64748b;padding:8px 0">暂无</div>'}
+    </div></div>
+    <div class="sw-list"><h3 style="color:#f59e0b">未盘点 (${missing.length})</h3><div class="sw-scroll">
+      ${missing.map(a=>`<div class="sw-item"><span>⬜ ${a.hostname}</span><span class="sw-ver">${a.location||'无位置'}</span></div>`).join('')||'<div style="color:#34d399;padding:8px 0">全部已盘点 🎉</div>'}
+    </div></div>`;
+  document.getElementById('modal').classList.add('open');
+}
+
+document.getElementById('modal').addEventListener('click', e=>{ if(e.target===document.getElementById('modal')) closeModal(); });
+
+if (token) {
+  try { const p=JSON.parse(atob(token.split('.')[1]));
+    if (p.exp*1000>Date.now()) showApp(p.sub); else logout();
+  } catch { logout(); }
+}
+setInterval(()=>{ if(token && document.getElementById('page-assets').classList.contains('active')) loadAssets(); }, 30000);
+</script>
+</body>
+</html>
