@@ -5,116 +5,180 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>IT 资产管理系统</title>
 <style>
+:root{
+  --bg:#090e13;--surface:#111820;--surface-2:#16212b;--surface-3:#1b2834;
+  --border:#263543;--border-strong:#34495a;--text:#edf4f8;--muted:#93a4b1;--subtle:#667886;
+  --teal:#2dd4bf;--teal-soft:#0c302d;--blue:#60a5fa;--blue-soft:#102a46;
+  --amber:#fbbf24;--amber-soft:#35280c;--violet:#a78bfa;--violet-soft:#2b2045;
+  --orange:#fb923c;--orange-soft:#3a2110;--green:#34d399;--green-soft:#0c2d22;
+  --red:#fb7185;--red-soft:#37161d;--shadow:0 18px 48px rgba(0,0,0,.32)
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
-.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
-.login-box{background:#1a1d2e;border:1px solid #2d3348;border-radius:16px;padding:40px;width:360px}
-.login-box h1{font-size:20px;font-weight:700;color:#7c85f3;margin-bottom:8px;text-align:center}
-.login-box p{font-size:13px;color:#64748b;text-align:center;margin-bottom:28px}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;letter-spacing:0}
+button,input,select,textarea{font:inherit;letter-spacing:0}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:34px;width:min(400px,100%);box-shadow:var(--shadow)}
+.login-brand{display:flex;align-items:center;gap:14px;margin-bottom:28px}
+.brand-mark{width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:var(--teal-soft);border:1px solid #17675d;color:var(--teal);font-size:14px;font-weight:800}
+.login-box h1{font-size:20px;font-weight:750;color:var(--text);margin-bottom:4px}
+.login-box p{font-size:13px;color:var(--muted)}
 .form-group{margin-bottom:16px}
-.form-group label{display:block;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
-.form-group input{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:8px;padding:10px 14px;color:#e2e8f0;font-size:14px;outline:none}
-.form-group input:focus{border-color:#7c85f3}
-.btn-login{width:100%;background:#7c85f3;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
-.btn-login:hover{opacity:.85}
-.login-err{color:#f87171;font-size:13px;text-align:center;margin-top:12px;min-height:20px}
-#app{display:none}
-header{background:#1a1d2e;padding:14px 24px;border-bottom:1px solid #2d3348;display:flex;align-items:center;gap:16px}
-header h1{font-size:17px;font-weight:600;color:#7c85f3}
+.form-group label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:7px;font-weight:700}
+.form-group input{width:100%;height:44px;background:#0b1117;border:1px solid var(--border);border-radius:8px;padding:0 13px;color:var(--text);font-size:14px;outline:none;transition:border-color .15s,box-shadow .15s}
+.form-group input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(45,212,191,.1)}
+.btn-login{width:100%;height:44px;background:var(--teal);color:#06201d;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;margin-top:6px;transition:filter .15s,transform .15s}
+.btn-login:hover{filter:brightness(1.08)}.btn-login:active{transform:translateY(1px)}
+.login-err{color:var(--red);font-size:13px;text-align:center;margin-top:12px;min-height:20px}
+#app{display:none;min-height:100vh}
+header{height:64px;background:rgba(17,24,32,.96);padding:0 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:22px;position:sticky;top:0;z-index:50}
+.app-brand{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.app-brand-mark{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:var(--teal-soft);border:1px solid #17675d;color:var(--teal);font-size:11px;font-weight:800}
+header h1{font-size:15px;font-weight:750;color:var(--text)}
 header .spacer{flex:1}
-.nav{display:flex;gap:4px}
-.nav button{background:none;border:none;color:#94a3b8;padding:8px 16px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:500}
-.nav button.active{background:#7c85f3;color:#fff}
-.nav button:hover:not(.active){background:#1e2235}
-.user-badge{font-size:12px;color:#64748b}
-.btn-logout{background:#2d3348;color:#e2e8f0;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer}
-.container{padding:24px;max-width:1440px;margin:0 auto}
-.tab-page{display:none}
-.tab-page.active{display:block}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-.stat-card{background:#1a1d2e;border:1px solid #2d3348;border-radius:10px;padding:20px}
-.stat-card .label{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
-.stat-card .value{font-size:28px;font-weight:700;margin-top:4px;color:#7c85f3}
-.toolbar{display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap}
-.toolbar input,.toolbar select{background:#1a1d2e;border:1px solid #2d3348;border-radius:8px;padding:10px 14px;color:#e2e8f0;font-size:14px;outline:none}
-.toolbar input.grow{flex:1;min-width:200px}
-.toolbar input:focus{border-color:#7c85f3}
-.toolbar select{min-width:130px}
-.table-wrap{overflow-x:auto;border:1px solid #2d3348;border-radius:8px}
-table{width:100%;border-collapse:collapse;background:#1a1d2e;border-radius:10px;overflow:hidden;border:1px solid #2d3348}
-.table-wrap table{border:0;border-radius:0;min-width:1050px}
-thead tr{background:#1e2235}
-th{padding:11px 14px;text-align:left;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #2d3348}
-td{padding:11px 14px;font-size:13px;border-bottom:1px solid #1e2235;vertical-align:middle}
+.nav{display:flex;gap:3px;background:#0b1117;border:1px solid var(--border);padding:3px;border-radius:8px}
+.nav button{height:34px;background:none;border:none;color:var(--muted);padding:0 15px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:650}
+.nav button.active{background:var(--teal);color:#06201d}
+#tab-inventory.active{background:var(--orange);color:#251104}
+.nav button:hover:not(.active){background:var(--surface-2);color:var(--text)}
+.user-badge{display:flex;align-items:center;height:32px;padding:0 11px;border-radius:8px;background:var(--surface-2);color:var(--muted);font-size:12px;border:1px solid var(--border)}
+.btn-logout{height:32px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:0 12px;font-size:12px;cursor:pointer}
+.btn-logout:hover{color:var(--red);border-color:#6d2a36}
+.container{padding:28px 24px 44px;max-width:1560px;margin:0 auto}
+.tab-page{display:none}.tab-page.active{display:block}
+.page-heading{display:flex;align-items:end;justify-content:space-between;margin-bottom:18px;gap:16px}
+.page-heading h2{font-size:22px;line-height:1.2;font-weight:760}
+.page-kicker{font-size:11px;text-transform:uppercase;color:var(--teal);font-weight:800;margin-bottom:6px}
+.page-kicker.inventory{color:var(--orange)}
+.page-state{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px}
+.page-state::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(52,211,153,.08)}
+.page-state.inventory::before{background:var(--orange);box-shadow:0 0 0 4px rgba(251,146,60,.08)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.stat-card{min-height:104px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:17px 18px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden}
+.stat-card::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--stat-color)}
+.stat-icon{width:38px;height:38px;border-radius:8px;display:grid;place-items:center;background:var(--stat-soft);color:var(--stat-color);font-size:16px;font-weight:800;flex:0 0 auto}
+.stat-total{--stat-color:var(--teal);--stat-soft:var(--teal-soft)}
+.stat-online{--stat-color:var(--green);--stat-soft:var(--green-soft)}
+.stat-agent{--stat-color:var(--blue);--stat-soft:var(--blue-soft)}
+.stat-manual{--stat-color:var(--amber);--stat-soft:var(--amber-soft)}
+.stat-card .label{font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:700}
+.stat-card .value{font-size:29px;line-height:1;font-weight:780;margin-top:7px;color:var(--stat-color)}
+.toolbar{display:grid;grid-template-columns:minmax(260px,1fr) auto auto;gap:10px;margin-bottom:14px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px}
+.toolbar-search{height:38px;display:flex;align-items:center;gap:8px;background:#0b1117;border:1px solid var(--border);border-radius:8px;padding:0 12px}
+.toolbar-search span{color:var(--subtle);font-size:18px}
+.toolbar input,.toolbar select{height:38px;background:#0b1117;border:1px solid var(--border);border-radius:8px;padding:0 12px;color:var(--text);font-size:13px;outline:none}
+.toolbar-search input{height:auto;background:transparent;border:0;padding:0;min-width:0;width:100%}
+.toolbar input::placeholder{color:var(--subtle)}
+.toolbar input:focus,.toolbar select:focus{border-color:var(--teal)}
+.toolbar-search:focus-within{border-color:var(--teal);box-shadow:0 0 0 3px rgba(45,212,191,.08)}
+.toolbar-filters,.toolbar-actions{display:flex;align-items:center;gap:8px}
+.toolbar select{min-width:120px}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface);scrollbar-color:var(--border-strong) transparent}
+table{width:100%;border-collapse:collapse;background:var(--surface)}
+.table-wrap table{border:0;min-width:1080px}
+thead tr{background:#0d151c}
+th{padding:12px 14px;text-align:left;font-size:10px;color:var(--subtle);text-transform:uppercase;font-weight:800;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:13px 14px;font-size:13px;border-bottom:1px solid #1b2833;vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:#1e2235}
-.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500}
-.badge.online{background:#0f2a1a;color:#34d399;border:1px solid #065f46}
-.badge.offline{background:#1f1515;color:#f87171;border:1px solid #7f1d1d}
-.badge.win{background:#0a2040;color:#60a5fa}
-.badge.mac{background:#25152a;color:#c084fc}
-.badge.open{background:#0f2a1a;color:#34d399}
-.badge.closed{background:#2d3348;color:#94a3b8}
-.badge.done{background:#0f2a1a;color:#34d399}
-.badge.miss{background:#2a1f0f;color:#f59e0b}
-.badge.unknown{background:#252839;color:#94a3b8;border:1px solid #3a4058}
-.badge.manual{background:#2a1f0f;color:#fbbf24;border:1px solid #78350f}
-.badge.agent{background:#0a2040;color:#60a5fa;border:1px solid #1e3a8a}
-.btn{cursor:pointer;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:500}
-.btn-vnc{background:#7c85f3;color:#fff}
-.btn-del{background:#3d1a1a;color:#f87171;margin-left:4px}
-.btn-detail{background:#1e2a1e;color:#34d399}
-.btn-edit{background:#1a2540;color:#60a5fa;margin-left:4px}
-.btn-qr{background:#2a1f3d;color:#c084fc;margin-left:4px}
-.btn-refresh{background:#2d3348;color:#e2e8f0}
-.btn-primary{background:#7c85f3;color:#fff;padding:10px 18px;font-size:14px}
-.btn-export{background:#0f2a1a;color:#34d399;border:1px solid #065f46;padding:10px 16px;font-size:13px}
-.progress{background:#2d3348;border-radius:4px;height:5px;margin-top:4px;min-width:90px}
-.progress-bar{height:100%;border-radius:4px;background:#7c85f3;transition:width .4s}
-.progress-bar.warn{background:#f59e0b}.progress-bar.danger{background:#ef4444}
-.empty{text-align:center;padding:60px;color:#64748b;font-size:14px}
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:100}
+tbody tr{transition:background .15s}tbody tr:hover{background:#141f28}
+.asset-name{font-size:13px;font-weight:720;color:var(--text)}
+.asset-meta{font-size:11px;color:var(--subtle);margin-top:4px}
+.type-line{display:flex;align-items:center;gap:8px}
+.type-glyph{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--violet-soft);color:var(--violet);flex:0 0 auto}
+.type-computer{background:var(--blue-soft);color:var(--blue)}
+.type-server,.type-storage{background:var(--violet-soft);color:var(--violet)}
+.type-switch,.type-router,.type-wireless_ap{background:var(--teal-soft);color:var(--teal)}
+.type-firewall{background:var(--red-soft);color:var(--red)}
+.type-printer{background:var(--amber-soft);color:var(--amber)}
+.type-other{background:var(--surface-3);color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0 9px;border-radius:20px;font-size:10px;font-weight:750;border:1px solid transparent;white-space:nowrap}
+.badge.online{background:var(--green-soft);color:var(--green);border-color:#166047}
+.badge.offline{background:var(--red-soft);color:var(--red);border-color:#722635}
+.badge.unknown{background:#1c2730;color:var(--muted);border-color:var(--border-strong)}
+.badge.manual{background:var(--amber-soft);color:var(--amber);border-color:#70530c}
+.badge.agent{background:var(--blue-soft);color:var(--blue);border-color:#23578b}
+.badge.open,.badge.done{background:var(--green-soft);color:var(--green)}
+.badge.closed{background:#1c2730;color:var(--muted)}
+.badge.miss{background:var(--orange-soft);color:var(--orange)}
+.badge.win{background:var(--blue-soft);color:var(--blue)}.badge.mac{background:var(--violet-soft);color:var(--violet)}
+.btn,.btn-primary,.btn-export{height:34px;cursor:pointer;border:1px solid transparent;border-radius:8px;padding:0 12px;font-size:12px;font-weight:720;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;transition:filter .15s,background .15s,border-color .15s,transform .15s}
+.btn:hover,.btn-primary:hover,.btn-export:hover{filter:brightness(1.1)}.btn:active,.btn-primary:active,.btn-export:active{transform:translateY(1px)}
+.btn-icon{width:34px;padding:0;font-size:16px}
+.btn-detail{background:var(--teal-soft);color:var(--teal);border-color:#17675d}
+.btn-edit{background:var(--blue-soft);color:var(--blue);border-color:#23578b}
+.btn-qr{background:var(--violet-soft);color:var(--violet);border-color:#58418d}
+.btn-vnc{background:var(--orange-soft);color:var(--orange);border-color:#7b421c}
+.btn-del{background:transparent;color:var(--red);border-color:#5f2530}
+.btn-refresh{background:var(--surface-2);color:var(--muted);border-color:var(--border)}
+.btn-primary{background:var(--teal);color:#06201d;padding:0 16px}
+.btn-manual{background:var(--amber);color:#241800}
+.btn-inventory{background:var(--orange);color:#251104}
+.btn-export{background:transparent;color:var(--green);border-color:#176047;padding:0 14px}
+.action-group{display:flex;align-items:center;gap:6px}
+.progress{background:#22303b;border-radius:4px;height:6px;margin-top:6px;min-width:90px;overflow:hidden}
+.progress-bar{height:100%;border-radius:4px;background:var(--teal);transition:width .4s}
+.progress-bar.warn{background:var(--amber)}.progress-bar.danger{background:var(--red)}
+.empty{text-align:center;padding:64px;color:var(--subtle);font-size:13px}
+.modal-bg{position:fixed;inset:0;background:rgba(2,6,10,.76);display:none;align-items:center;justify-content:center;padding:20px;z-index:100}
 .modal-bg.open{display:flex}
-.modal{background:#1a1d2e;border:1px solid #2d3348;border-radius:14px;padding:28px;width:640px;max-height:82vh;overflow-y:auto}
-.modal h2{font-size:16px;font-weight:600;margin-bottom:20px;color:#7c85f3;display:flex;align-items:center;gap:8px}
-.modal .close{margin-left:auto;background:none;border:none;color:#64748b;font-size:20px;cursor:pointer}
+.modal{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:0;width:min(680px,100%);max-height:86vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal h2{font-size:15px;font-weight:750;padding:18px 20px;margin-bottom:0;color:var(--text);display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:2}
+.modal .close{margin-left:auto;width:32px;height:32px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:18px;cursor:pointer}
+#modal-icon{color:var(--teal)}#modal-body{padding:20px}
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.info-item .key{font-size:11px;color:#64748b;text-transform:uppercase}
-.info-item .val{font-size:14px;margin-top:3px;color:#e2e8f0;font-weight:500;word-break:break-all}
-.info-item input{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:6px;padding:8px;color:#e2e8f0;font-size:13px;margin-top:3px;outline:none}
-.info-item select,.info-item textarea{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:6px;padding:8px;color:#e2e8f0;font-size:13px;margin-top:3px;outline:none}
-.info-item textarea{min-height:72px;resize:vertical}
+.info-item{min-width:0}.info-item .key,.info-item>label{font-size:10px;color:var(--subtle);text-transform:uppercase;font-weight:800}
+.info-item .val{font-size:13px;margin-top:5px;color:var(--text);font-weight:600;word-break:break-word}
+.info-item input,.info-item select,.info-item textarea,.sw-search{width:100%;background:#0b1117;border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-top:5px;outline:none}
+.info-item input,.info-item select{height:38px}
+.info-item input:focus,.info-item select:focus,.info-item textarea:focus,.sw-search:focus{border-color:var(--teal)}
+.info-item textarea{min-height:78px;resize:vertical}
 .info-item.full{grid-column:1/-1}
-.toggle-row{display:flex;align-items:center;gap:8px;margin-top:8px;color:#cbd5e1;font-size:13px}
-.toggle-row input{width:16px;height:16px;margin:0}
-.sw-list{margin-top:20px}
-.sw-list h3{font-size:11px;color:#64748b;text-transform:uppercase;margin-bottom:10px}
-.sw-search{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:6px;padding:7px 12px;color:#e2e8f0;font-size:13px;outline:none;margin-bottom:10px}
-.sw-scroll{max-height:200px;overflow-y:auto}
-.sw-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3348;font-size:13px}
-.sw-ver{color:#64748b;font-size:11px}
-.qr-box{text-align:center;padding:10px}
-.qr-box img{background:#fff;padding:10px;border-radius:10px;width:260px;height:260px}
-.qr-box p{margin-top:12px;font-size:13px;color:#64748b}
-.toast{position:fixed;right:20px;bottom:20px;z-index:200;max-width:360px;padding:12px 16px;border-radius:8px;background:#0f2a1a;border:1px solid #065f46;color:#34d399;font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.35);opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s,transform .2s}
-.toast.show{opacity:1;transform:translateY(0)}
-.toast.error{background:#3d1a1a;border-color:#7f1d1d;color:#f87171}
+.toggle-row{display:flex;align-items:center;gap:9px;margin-top:14px;color:var(--muted);font-size:13px}
+.toggle-row input{width:17px;height:17px;margin:0;accent-color:var(--teal)}
+.sw-list{margin-top:20px;border-top:1px solid var(--border);padding-top:16px}
+.sw-list h3{font-size:10px;color:var(--subtle);text-transform:uppercase;margin-bottom:10px;font-weight:800}
+.sw-search{margin:0 0 10px}
+.sw-scroll{max-height:220px;overflow-y:auto}
+.sw-item{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px}
+.sw-ver{color:var(--subtle);font-size:11px}
+.record-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;background:var(--muted)}
+.record-dot.done{background:var(--green)}.record-dot.missing{background:var(--amber)}
+.qr-box{text-align:center;padding:4px}
+.qr-box img{background:#fff;padding:10px;border-radius:8px;width:260px;height:260px;box-shadow:0 10px 30px rgba(0,0,0,.28)}
+.qr-box p{margin-top:12px;font-size:13px;color:var(--muted)}
+.toast{position:fixed;right:20px;bottom:20px;z-index:200;max-width:380px;padding:12px 16px;border-radius:8px;background:var(--green-soft);border:1px solid #176047;color:var(--green);font-size:13px;box-shadow:var(--shadow);opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:translateY(0)}.toast.error{background:var(--red-soft);border-color:#722635;color:var(--red)}
+@media(max-width:1100px){
+  .toolbar{grid-template-columns:1fr}.toolbar-filters,.toolbar-actions{flex-wrap:wrap}
+}
 @media(max-width:800px){
-  header{padding:12px;flex-wrap:wrap}
-  .container{padding:14px}
-  .stats{grid-template-columns:repeat(2,1fr)}
-  .modal{width:calc(100vw - 24px);padding:20px}
-  .info-grid{grid-template-columns:1fr}
-  .info-item.full{grid-column:auto}
+  header{height:auto;min-height:60px;padding:10px 12px;gap:10px;flex-wrap:wrap}
+  .app-brand{margin-right:auto}.app-brand h1{font-size:14px}
+  .nav{order:3;width:100%}.nav button{flex:1}.user-badge{display:none}
+  .container{padding:20px 12px 34px}.page-heading{align-items:center}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .stat-card{min-height:88px;padding:13px}.stat-icon{width:32px;height:32px}.stat-card .value{font-size:24px}
+  .toolbar{padding:8px}.toolbar-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .toolbar-filters select{width:100%;min-width:0}.toolbar-filters select:last-child{grid-column:1/-1}
+  .toolbar-actions{width:100%}.toolbar-actions .btn-primary{flex:1}
+  .modal-bg{padding:10px}.modal{max-height:92vh}.modal h2{padding:14px 16px}#modal-body{padding:16px}
+  .info-grid{grid-template-columns:1fr}.info-item.full{grid-column:auto}
+}
+@media(max-width:420px){
+  .page-heading h2{font-size:20px}.page-state{display:none}
+  .stat-card{gap:10px}.stat-icon{display:none}
+  .toolbar-actions{display:grid;grid-template-columns:1fr auto auto}
+  .toolbar-actions .btn-export{width:38px;padding:0}.toolbar-actions .btn-export .export-label{display:none}.toolbar-actions .btn-export .export-icon{font-size:17px}
 }
 </style>
 </head>
 <body>
 <div class="login-wrap" id="login-page">
   <div class="login-box">
-    <div style="text-align:center;font-size:40px;margin-bottom:12px">🖥</div>
-    <h1>IT 资产管理系统</h1>
-    <p>请使用管理员账号登录</p>
+    <div class="login-brand">
+      <div class="brand-mark">IT</div>
+      <div><h1>资产管理中心</h1><p>管理员登录</p></div>
+    </div>
     <div class="form-group"><label>用户名</label>
       <input id="l-user" type="text" value="admin" autocomplete="username"></div>
     <div class="form-group"><label>密码</label>
@@ -126,8 +190,7 @@ tr:hover td{background:#1e2235}
 
 <div id="app">
   <header>
-    <div style="width:30px;height:30px;background:#7c85f3;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px">🖥</div>
-    <h1>IT 资产管理</h1>
+    <div class="app-brand"><div class="app-brand-mark">IT</div><h1>资产管理中心</h1></div>
     <div class="nav">
       <button id="tab-assets" class="active" onclick="switchTab('assets')">资产清单</button>
       <button id="tab-inventory" onclick="switchTab('inventory')">盘点管理</button>
@@ -140,20 +203,28 @@ tr:hover td{background:#1e2235}
 
     <!-- ASSETS TAB -->
     <div class="tab-page active" id="page-assets">
+      <div class="page-heading">
+        <div><div class="page-kicker">Assets</div><h2>资产总览</h2></div>
+        <div class="page-state">服务正常</div>
+      </div>
       <div class="stats">
-        <div class="stat-card"><div class="label">总资产</div><div class="value" id="s-total">0</div></div>
-        <div class="stat-card"><div class="label">在线</div><div class="value" style="color:#34d399" id="s-online">0</div></div>
-        <div class="stat-card"><div class="label">Agent 电脑</div><div class="value" style="color:#60a5fa" id="s-agent">0</div></div>
-        <div class="stat-card"><div class="label">手工资产</div><div class="value" style="color:#fbbf24" id="s-manual">0</div></div>
+        <div class="stat-card stat-total"><div class="stat-icon">Σ</div><div><div class="label">总资产</div><div class="value" id="s-total">0</div></div></div>
+        <div class="stat-card stat-online"><div class="stat-icon">●</div><div><div class="label">在线</div><div class="value" id="s-online">0</div></div></div>
+        <div class="stat-card stat-agent"><div class="stat-icon">A</div><div><div class="label">Agent 电脑</div><div class="value" id="s-agent">0</div></div></div>
+        <div class="stat-card stat-manual"><div class="stat-icon">M</div><div><div class="label">手工资产</div><div class="value" id="s-manual">0</div></div></div>
       </div>
       <div class="toolbar">
-        <input class="grow" id="search" placeholder="搜索名称、IP、标签、部门或责任人" oninput="filterAssets()">
-        <select id="filter-type" onchange="filterAssets()"><option value="">全部类型</option></select>
-        <select id="filter-dept" onchange="filterAssets()"><option value="">全部部门</option></select>
-        <select id="filter-owner" onchange="filterAssets()"><option value="">全部责任人</option></select>
-        <button class="btn-primary" onclick="addAsset()">+ 手工录入</button>
-        <button class="btn btn-refresh" onclick="loadAssets()">↻ 刷新</button>
-        <button class="btn-export" onclick="exportAssets()">⬇ 导出资产 CSV</button>
+        <div class="toolbar-search"><span>⌕</span><input id="search" placeholder="搜索名称、IP、标签、部门或责任人" oninput="filterAssets()"></div>
+        <div class="toolbar-filters">
+          <select id="filter-type" onchange="filterAssets()"><option value="">全部类型</option></select>
+          <select id="filter-dept" onchange="filterAssets()"><option value="">全部部门</option></select>
+          <select id="filter-owner" onchange="filterAssets()"><option value="">全部责任人</option></select>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn-primary btn-manual" onclick="addAsset()">＋ 手工录入</button>
+          <button class="btn btn-icon btn-refresh" onclick="loadAssets()" title="刷新资产" aria-label="刷新资产">↻</button>
+          <button class="btn-export" onclick="exportAssets()"><span class="export-icon">⇩</span><span class="export-label">导出 CSV</span></button>
+        </div>
       </div>
       <div class="table-wrap"><table>
         <thead><tr>
@@ -166,14 +237,19 @@ tr:hover td{background:#1e2235}
 
     <!-- INVENTORY TAB -->
     <div class="tab-page" id="page-inventory">
-      <div class="toolbar">
-        <input class="grow" id="new-session" placeholder="新建盘点场次名称，如：2026 Q3 全公司盘点">
-        <button class="btn-primary" onclick="createSession()">+ 新建盘点</button>
+      <div class="page-heading">
+        <div><div class="page-kicker inventory">Inventory</div><h2>盘点管理</h2></div>
+        <div class="page-state inventory">场次管理</div>
       </div>
-      <table>
+      <div class="toolbar">
+        <div class="toolbar-search"><span>＋</span><input id="new-session" placeholder="盘点场次名称，如：2026 Q3 全公司盘点"></div>
+        <div></div>
+        <div class="toolbar-actions"><button class="btn-primary btn-inventory" onclick="createSession()">新建盘点</button></div>
+      </div>
+      <div class="table-wrap"><table>
         <thead><tr><th>盘点场次</th><th>状态</th><th>已盘点</th><th>创建人</th><th>创建时间</th><th>操作</th></tr></thead>
         <tbody id="session-table"></tbody>
-      </table>
+      </table></div>
     </div>
 
   </div>
@@ -181,7 +257,7 @@ tr:hover td{background:#1e2235}
 
 <div class="modal-bg" id="modal">
   <div class="modal">
-    <h2><span id="modal-icon">🖥</span><span id="modal-name">详情</span>
+    <h2><span id="modal-icon">IT</span><span id="modal-name">详情</span>
       <button class="close" onclick="closeModal()">✕</button></h2>
     <div id="modal-body"></div>
   </div>
@@ -217,7 +293,7 @@ function doLogin() {
 function showApp(username) {
   document.getElementById('login-page').style.display='none';
   document.getElementById('app').style.display='block';
-  document.getElementById('user-badge').textContent = '👤 '+(username||'');
+  document.getElementById('user-badge').textContent = username||'';
   loadAssets();
 }
 
@@ -245,9 +321,9 @@ function switchTab(tab) {
 }
 
 const ASSET_TYPES = {
-  computer:['电脑','💻'], server:['服务器','▣'], switch:['交换机','⇄'],
-  firewall:['防火墙','◆'], router:['路由器','⇆'], wireless_ap:['无线 AP','⌁'],
-  printer:['打印机','▤'], storage:['存储','▥'], other:['其他','◇']
+  computer:['电脑','PC'], server:['服务器','SR'], switch:['交换机','SW'],
+  firewall:['防火墙','FW'], router:['路由器','RT'], wireless_ap:['无线 AP','AP'],
+  printer:['打印机','PR'], storage:['存储','ST'], other:['其他','OT']
 };
 function esc(value){ return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function isOnline(a){ return a?.online_status==='online'; }
@@ -309,25 +385,25 @@ function renderAssets(assets) {
     const source=a.source==='manual'?
       '<span class="badge manual">手工</span>':'<span class="badge agent">Agent</span>';
     const vnc=a.source==='agent'&&a.ip?
-      `<button class="btn btn-vnc" onclick="launchVNC('${esc(a.ip)}',${a.vnc_port||5900})">VNC</button>`:'';
+      `<button class="btn btn-icon btn-vnc" onclick="launchVNC('${esc(a.ip)}',${a.vnc_port||5900})" title="VNC 连接" aria-label="VNC 连接">↗</button>`:'';
     const ping=a.source==='manual'&&a.ip?
-      `<button class="btn btn-refresh" onclick="pingAsset('${a.id}')">Ping</button>`:'';
+      `<button class="btn btn-icon btn-refresh" onclick="pingAsset('${a.id}')" title="立即 Ping" aria-label="立即 Ping">⌁</button>`:'';
     return `<tr>
       <td><span class="badge ${status}">${statusLabel}</span></td>
-      <td><strong>${esc(a.hostname)||'—'}</strong><div class="sw-ver">${esc(a.asset_tag)||'无资产标签'}</div></td>
-      <td><div>${typeIcon} ${typeLabel}</div><div style="margin-top:4px">${source}</div></td>
+      <td><div class="asset-name">${esc(a.hostname)||'—'}</div><div class="asset-meta">${esc(a.asset_tag)||'无资产标签'}</div></td>
+      <td><div class="type-line"><span class="type-glyph type-${esc(a.asset_type)}">${typeIcon}</span><div><div>${typeLabel}</div><div style="margin-top:4px">${source}</div></div></div></td>
       <td style="font-family:monospace;font-size:12px">${esc(a.ip)||'—'}</td>
-      <td><div>${esc(a.department)||'未分配部门'}</div><div class="sw-ver">${esc(a.owner)||'未分配责任人'}</div></td>
-      <td>${esc(a.location)||'<span style="color:#64748b">未设置</span>'}</td>
-      <td style="font-size:11px;color:#64748b;white-space:nowrap">${fmtDate(checkedAt)}
+      <td><div>${esc(a.department)||'未分配部门'}</div><div class="asset-meta">${esc(a.owner)||'未分配责任人'}</div></td>
+      <td>${esc(a.location)||'<span style="color:var(--subtle)">未设置</span>'}</td>
+      <td style="font-size:11px;color:var(--muted);white-space:nowrap">${fmtDate(checkedAt)}
         <div>${a.source==='manual'?'Ping':'Agent'}${a.ping_latency_ms!=null?' · '+a.ping_latency_ms+' ms':''}</div></td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-detail" onclick="showDetail('${a.id}')">详情</button>
-        <button class="btn btn-edit" onclick="editAsset('${a.id}')">编辑</button>
-        <button class="btn btn-qr" onclick="showQR('${a.id}')">QR</button>
+      <td><div class="action-group">
+        <button class="btn btn-detail" onclick="showDetail('${a.id}')">查看</button>
+        <button class="btn btn-icon btn-edit" onclick="editAsset('${a.id}')" title="编辑" aria-label="编辑">✎</button>
+        <button class="btn btn-icon btn-qr" onclick="showQR('${a.id}')" title="二维码" aria-label="二维码">▦</button>
         ${ping}${vnc}
-        <button class="btn btn-del" onclick="deleteAsset('${a.id}')">删</button>
-      </td></tr>`;
+        <button class="btn btn-icon btn-del" onclick="deleteAsset('${a.id}')" title="删除" aria-label="删除">×</button>
+      </div></td></tr>`;
   }).join('');
 }
 
@@ -370,14 +446,14 @@ async function showDetail(id) {
 function filterSW(input){
   const q=input.value.toLowerCase(), sw=JSON.parse(decodeURIComponent(input.dataset.sw));
   document.getElementById('sw-scroll').innerHTML=sw.filter(s=>s.name.toLowerCase().includes(q))
-    .map(s=>`<div class="sw-item"><span>${esc(s.name)}</span><span class="sw-ver">${esc(s.version)}</span></div>`).join('')||'<div style="color:#64748b;padding:10px 0">无匹配</div>';
+    .map(s=>`<div class="sw-item"><span>${esc(s.name)}</span><span class="sw-ver">${esc(s.version)}</span></div>`).join('')||'<div style="color:var(--subtle);padding:10px 0">无匹配</div>';
 }
 function showQR(id) {
   const asset=allAssets.find(a=>a.id===id);
   const imageUrl=`/api/assets/${encodeURIComponent(id)}/qr`;
   const detailUrl=`${location.origin}/asset?id=${encodeURIComponent(id)}`;
   document.getElementById('modal-name').textContent='资产二维码';
-  document.getElementById('modal-icon').textContent='🔳';
+  document.getElementById('modal-icon').textContent='QR';
   document.getElementById('modal-body').innerHTML=`<div class="qr-box">
     <img src="${imageUrl}" alt="资产二维码">
     <p><strong>${esc(asset?.hostname)||'资产'}</strong></p>
@@ -574,19 +650,22 @@ async function loadSessions() {
   if (!sessions.length) {
     document.getElementById('session-table').innerHTML='<tr><td colspan="6" class="empty">暂无盘点场次，点上方新建</td></tr>'; return;
   }
-  document.getElementById('session-table').innerHTML = sessions.map(s=>`<tr>
-    <td><strong>${s.name}</strong></td>
+  document.getElementById('session-table').innerHTML = sessions.map(s=>{
+    const encodedName=encodeURIComponent(s.name);
+    return `<tr>
+    <td><div class="asset-name">${esc(s.name)}</div><div class="asset-meta">${s.status==='open'?'进行中':'已归档'}</div></td>
     <td><span class="badge ${s.status==='open'?'open':'closed'}">${s.status==='open'?'进行中':'已关闭'}</span></td>
     <td>${s.total} 台</td>
-    <td>${s.created_by||'—'}</td>
-    <td style="font-size:12px;color:#64748b">${fmtDate(s.created_at)}</td>
-    <td style="white-space:nowrap">
-      <button class="btn btn-detail" onclick="openSession('${s.id}','${s.name}')">查看进度</button>
-      <button class="btn btn-qr" onclick="copyScanLink('${s.id}')">扫码链接</button>
-      <button class="btn btn-edit" onclick="downloadWithAuth('/api/reports/inventory/${s.id}.csv','盘点-${s.name}.csv')">导出</button>
+    <td>${esc(s.created_by)||'—'}</td>
+    <td style="font-size:12px;color:var(--muted)">${fmtDate(s.created_at)}</td>
+    <td><div class="action-group">
+      <button class="btn btn-detail" onclick="openSession('${s.id}',decodeURIComponent('${encodedName}'))">进度</button>
+      <button class="btn btn-icon btn-qr" onclick="copyScanLink('${s.id}')" title="扫码链接" aria-label="扫码链接">▦</button>
+      <button class="btn btn-icon btn-edit" onclick="downloadWithAuth('/api/reports/inventory/${s.id}.csv','盘点-'+decodeURIComponent('${encodedName}')+'.csv')" title="导出" aria-label="导出">⇩</button>
       ${s.status==='open'?`<button class="btn btn-vnc" onclick="closeSession('${s.id}')">结束</button>`:''}
-      <button class="btn btn-del" onclick="deleteSession('${s.id}','${s.name}')">删</button>
-    </td></tr>`).join('');
+      <button class="btn btn-icon btn-del" onclick="deleteSession('${s.id}',decodeURIComponent('${encodedName}'))" title="删除" aria-label="删除">×</button>
+    </div></td></tr>`;
+  }).join('');
 }
 
 async function createSession() {
@@ -623,23 +702,23 @@ async function openSession(id, name) {
   if(!statsR||!recR) return;
   const stats = await statsR.json(); const records = await recR.json();
   document.getElementById('modal-name').textContent = name;
-  document.getElementById('modal-icon').textContent='📋';
+  document.getElementById('modal-icon').textContent='IN';
   const scannedIds = new Set(records.map(r=>r.asset_id));
   const missing = allAssets.filter(a=>!scannedIds.has(a.id));
   document.getElementById('modal-body').innerHTML=`
     <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
-      <div class="stat-card"><div class="label">资产总数</div><div class="value">${stats.total}</div></div>
-      <div class="stat-card"><div class="label">已盘点</div><div class="value" style="color:#34d399">${stats.scanned}</div></div>
-      <div class="stat-card"><div class="label">未盘点</div><div class="value" style="color:#f59e0b">${stats.missing}</div></div>
+      <div class="stat-card stat-total"><div><div class="label">资产总数</div><div class="value">${stats.total}</div></div></div>
+      <div class="stat-card stat-online"><div><div class="label">已盘点</div><div class="value">${stats.scanned}</div></div></div>
+      <div class="stat-card stat-manual"><div><div class="label">未盘点</div><div class="value">${stats.missing}</div></div></div>
     </div>
     ${bar(pct(stats.scanned,stats.total))}
-    <div style="margin:12px 0"><button class="btn-export" onclick="downloadWithAuth('/api/reports/inventory/${id}.csv','盘点-${name}.csv')">⬇ 导出盘点报表 CSV</button>
-    <button class="btn-primary" style="margin-left:8px" onclick="copyScanLink('${id}')">📱 扫码链接</button></div>
+    <div style="display:flex;gap:8px;margin:14px 0"><button class="btn-export" onclick="downloadWithAuth('/api/reports/inventory/${id}.csv','盘点-${name}.csv')">⇩ 导出报表</button>
+    <button class="btn-primary btn-inventory" onclick="copyScanLink('${id}')">▦ 扫码链接</button></div>
     <div class="sw-list"><h3>已盘点 (${records.length})</h3><div class="sw-scroll">
-      ${records.map(r=>`<div class="sw-item"><span>✅ ${r.hostname} <span style="color:#64748b">· ${r.scanned_location||r.asset_location||'无位置'}</span></span><span class="sw-ver">${r.scanned_by||''} ${fmtDate(r.scanned_at)}</span></div>`).join('')||'<div style="color:#64748b;padding:8px 0">暂无</div>'}
+      ${records.map(r=>`<div class="sw-item"><span><i class="record-dot done"></i>${esc(r.hostname)} <span style="color:var(--subtle)">· ${esc(r.scanned_location||r.asset_location||'无位置')}</span></span><span class="sw-ver">${esc(r.scanned_by)} ${fmtDate(r.scanned_at)}</span></div>`).join('')||'<div style="color:var(--subtle);padding:8px 0">暂无</div>'}
     </div></div>
-    <div class="sw-list"><h3 style="color:#f59e0b">未盘点 (${missing.length})</h3><div class="sw-scroll">
-      ${missing.map(a=>`<div class="sw-item"><span>⬜ ${a.hostname}</span><span class="sw-ver">${a.location||'无位置'}</span></div>`).join('')||'<div style="color:#34d399;padding:8px 0">全部已盘点 🎉</div>'}
+    <div class="sw-list"><h3 style="color:var(--amber)">未盘点 (${missing.length})</h3><div class="sw-scroll">
+      ${missing.map(a=>`<div class="sw-item"><span><i class="record-dot missing"></i>${esc(a.hostname)}</span><span class="sw-ver">${esc(a.location||'无位置')}</span></div>`).join('')||'<div style="color:var(--green);padding:8px 0">全部已盘点</div>'}
     </div></div>`;
   document.getElementById('modal').classList.add('open');
 }

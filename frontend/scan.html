@@ -5,47 +5,57 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>资产盘点 · 扫码</title>
 <style>
+:root{
+  --bg:#090e13;--surface:#111820;--surface-2:#16212b;--border:#263543;--text:#edf4f8;
+  --muted:#93a4b1;--subtle:#667886;--teal:#2dd4bf;--blue:#60a5fa;--amber:#fbbf24;
+  --orange:#fb923c;--green:#34d399;--red:#fb7185
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;padding:16px}
-.card{background:#1a1d2e;border:1px solid #2d3348;border-radius:14px;padding:20px;max-width:480px;margin:0 auto 16px}
-h1{font-size:18px;color:#7c85f3;margin-bottom:4px}
-.sub{font-size:13px;color:#64748b;margin-bottom:16px}
-label{display:block;font-size:12px;color:#64748b;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.05em}
-input,select{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:8px;padding:12px;color:#e2e8f0;font-size:15px;outline:none}
-input:focus,select:focus{border-color:#7c85f3}
-button{width:100%;border:none;border-radius:8px;padding:14px;font-size:16px;font-weight:600;cursor:pointer;margin-top:16px;transition:opacity .15s}
-button:active{opacity:.7}
-.btn-primary{background:#7c85f3;color:#fff}
-.btn-scan{background:#1e2a1e;color:#34d399;border:1px solid #065f46}
-#reader{width:100%;border-radius:10px;overflow:hidden;margin-top:12px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .3s;z-index:100}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:18px 14px;letter-spacing:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;max-width:480px;margin:0 auto 16px;box-shadow:0 18px 48px rgba(0,0,0,.28)}
+.scan-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.scan-mark{width:40px;height:40px;border-radius:8px;display:grid;place-items:center;background:#3a2110;border:1px solid #7b421c;color:var(--orange);font-size:12px;font-weight:800}
+h1{font-size:19px;margin-bottom:3px}.sub{font-size:13px;color:var(--muted)}
+label{display:block;font-size:11px;color:var(--muted);margin:14px 0 7px;text-transform:uppercase;font-weight:800}
+input,select{width:100%;height:44px;background:#0b1117;border:1px solid var(--border);border-radius:8px;padding:0 12px;color:var(--text);font-size:14px;outline:none}
+input:focus,select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(45,212,191,.08)}
+button{width:100%;height:46px;border-radius:8px;padding:0 14px;font-size:14px;font-weight:760;cursor:pointer;margin-top:16px;transition:filter .15s,transform .15s}
+button:hover{filter:brightness(1.08)}button:active{transform:translateY(1px)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+button:disabled{cursor:not-allowed;opacity:.55}
+.btn-primary{background:var(--orange);color:#251104;border:1px solid #b85d1f}
+.btn-scan{background:#0c302d;color:var(--teal);border:1px solid #17675d}
+#reader{width:100%;border-radius:8px;overflow:hidden;margin-top:12px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0c2d22;color:var(--green);border:1px solid #176047;padding:12px 20px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;z-index:100;white-space:nowrap}
 .toast.show{opacity:1}
-.toast.err{background:#7f1d1d}
-.asset-info{background:#0f1117;border:1px solid #2d3348;border-radius:8px;padding:14px;margin-top:12px}
-.asset-info .h{font-size:16px;font-weight:600;color:#e2e8f0}
-.asset-info .r{font-size:13px;color:#64748b;margin-top:4px}
+.toast.err{background:#37161d;color:var(--red);border-color:#722635}
+.asset-info{background:#102a46;border:1px solid #23578b;border-radius:8px;padding:14px;margin-top:12px}
+.asset-info .h{font-size:15px;font-weight:750;color:var(--blue)}
+.asset-info .r{font-size:12px;color:#b8cee4;margin-top:5px}
 .hidden{display:none}
-.count{display:flex;gap:12px;margin-top:14px}
-.count-box{flex:1;background:#0f1117;border:1px solid #2d3348;border-radius:8px;padding:12px;text-align:center}
-.count-box .n{font-size:22px;font-weight:700;color:#7c85f3}
-.count-box .l{font-size:11px;color:#64748b;margin-top:2px}
+.count{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.count-box{background:#0b1117;border:1px solid var(--border);border-radius:8px;padding:12px 6px;text-align:center;position:relative;overflow:hidden}
+.count-box::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:var(--count-color)}
+.count-box.total{--count-color:var(--blue)}.count-box.scanned{--count-color:var(--green)}.count-box.missing{--count-color:var(--red)}
+.count-box .n{font-size:23px;font-weight:780;color:var(--count-color)}
+.count-box .l{font-size:10px;color:var(--muted);margin-top:3px}
+@media(max-width:360px){.card{padding:16px}.count-box{padding:11px 4px}.count-box .n{font-size:20px}}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>📱 资产盘点</h1>
-  <div class="sub" id="session-name">加载中…</div>
+  <div class="scan-header"><div class="scan-mark">IN</div><div><h1>资产盘点</h1><div class="sub" id="session-name">加载中…</div></div></div>
 
   <div class="count">
-    <div class="count-box"><div class="n" id="c-total">0</div><div class="l">资产总数</div></div>
-    <div class="count-box"><div class="n" style="color:#34d399" id="c-scanned">0</div><div class="l">已盘点</div></div>
-    <div class="count-box"><div class="n" style="color:#f87171" id="c-missing">0</div><div class="l">未盘点</div></div>
+    <div class="count-box total"><div class="n" id="c-total">0</div><div class="l">资产总数</div></div>
+    <div class="count-box scanned"><div class="n" id="c-scanned">0</div><div class="l">已盘点</div></div>
+    <div class="count-box missing"><div class="n" id="c-missing">0</div><div class="l">未盘点</div></div>
   </div>
 
   <label>盘点场次</label>
   <select id="session-select" onchange="onSessionChange()"></select>
 
-  <button class="btn-scan" id="scan-btn" onclick="toggleScanner()">📷 开启摄像头扫码</button>
+  <button class="btn-scan" id="scan-btn" onclick="toggleScanner()">开启摄像头扫码</button>
   <div id="reader"></div>
 
   <label>或手动选择资产</label>
@@ -62,7 +72,7 @@ button:active{opacity:.7}
   <label>盘点人</label>
   <input id="by-input" placeholder="你的名字">
 
-  <button class="btn-primary" id="submit-btn" onclick="submitScan()">✓ 确认盘点</button>
+  <button class="btn-primary" id="submit-btn" onclick="submitScan()">确认盘点</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -137,7 +147,7 @@ async function loadPublicInventory(showError=true) {
   applyStats(data.stats);
   const closed = data.session.status === 'closed';
   document.getElementById('submit-btn').disabled = closed;
-  document.getElementById('submit-btn').textContent = closed ? '盘点已结束' : '✓ 确认盘点';
+  document.getElementById('submit-btn').textContent = closed ? '盘点已结束' : '确认盘点';
   if (closed && showError) toast('该盘点场次已经结束', true);
   return true;
 }
@@ -203,7 +213,7 @@ function toggleScanner() {
 function stopScanner() {
   if (scanner) scanner.stop().then(()=>scanner.clear()).catch(()=>{});
   scanning = false;
-  document.getElementById('scan-btn').textContent = '📷 开启摄像头扫码';
+  document.getElementById('scan-btn').textContent = '开启摄像头扫码';
 }
 
 async function submitScan() {
@@ -221,7 +231,7 @@ async function submitScan() {
   });
   const d = await r.json();
   if (!r.ok) { toast(d.error || '提交失败', true); return; }
-  toast('✓ 已盘点: ' + d.hostname);
+  toast('已盘点: ' + d.hostname);
   document.getElementById('note-input').value = '';
   document.getElementById('asset-select').value = '';
   document.getElementById('asset-info').className = 'asset-info hidden';
