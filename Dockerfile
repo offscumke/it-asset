@@ -2,6 +2,8 @@ FROM node:24-alpine
 
 WORKDIR /app/server
 
+RUN apk add --no-cache iputils
+
 COPY server/package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 

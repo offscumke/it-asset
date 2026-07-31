@@ -19,6 +19,7 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
       TRUST_PROXY: ${TRUST_PROXY:-0}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
+      PING_INTERVAL_SECONDS: ${PING_INTERVAL_SECONDS:-60}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
@@ -30,6 +31,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - NET_RAW
 
 volumes:
   it_asset_data:

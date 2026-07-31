@@ -1,6 +1,13 @@
 # IT 资产管理系统
 
-一个轻量的 IT 资产管理系统，包含 Web 管理端、SQLite 数据库和 Windows/macOS 采集 Agent。支持资产自动上报、软硬件信息查看、盘点场次、二维码、CSV 导出和 VNC 链接。
+一个轻量的 IT 资产管理系统，包含 Web 管理端、SQLite 数据库和 Windows/macOS 采集 Agent。支持资产自动上报、手工资产、Ping 在线检测、部门与责任人归属、盘点场次、二维码、CSV 导出和 VNC 链接。
+
+## 资产录入方式
+
+- 电脑由 Agent 自动上报硬件、系统和软件信息，管理端可补充部门、责任人、位置和资产标签。
+- 服务器、交换机、防火墙、路由器、无线 AP、打印机、存储及其他资产在管理端手工录入。
+- 手工资产配置 IP 后可启用 Ping 监测；后台按固定间隔更新在线状态，也可在资产列表中立即检测。
+- 资产二维码是公开只读链接，扫码后可查看类型、归属、位置和在线状态，不提供编辑权限。
 
 ## 运行架构
 
@@ -16,7 +23,7 @@ Linux + Docker Compose
 SQLite named volume (/data/assets.db)
 ```
 
-生产容器使用非 root 用户运行。数据库、环境密钥、依赖目录和构建产物不会提交到 Git。
+生产容器使用非 root 用户运行，只增加 Ping 所需的 `NET_RAW` capability。数据库、环境密钥、依赖目录和构建产物不会提交到 Git。
 
 ## Linux 快速部署
 
@@ -62,6 +69,7 @@ curl http://127.0.0.1:3001/api/health
 | `PUBLIC_BASE_URL` | 空 | 对外访问根地址，用于二维码链接 |
 | `TRUST_PROXY` | `0` | 位于可信反向代理后时设为 `1` |
 | `CORS_ORIGIN` | 空 | 仅在分离部署前端时设置允许的浏览器来源 |
+| `PING_INTERVAL_SECONDS` | `60` | 手工资产后台 Ping 检测间隔，最小 15 秒 |
 
 修改 `.env` 后重新应用：
 
@@ -172,6 +180,7 @@ npm start
 
 ```bash
 npm run check --prefix server
+npm test --prefix server
 npm audit --omit=dev --prefix server
 bash -n scripts/deploy.sh scripts/backup.sh scripts/import-db.sh
 docker compose --env-file .env.example config --quiet

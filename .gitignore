@@ -3,6 +3,7 @@
 .playwright-cli/
 __pycache__/
 *.pyc
+*.bak
 
 server/node_modules/
 server/*.db

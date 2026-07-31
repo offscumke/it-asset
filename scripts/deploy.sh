@@ -39,6 +39,7 @@ if [[ ! -f .env ]]; then
     echo "PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}"
     echo "TRUST_PROXY=${TRUST_PROXY:-0}"
     echo "CORS_ORIGIN=${CORS_ORIGIN:-}"
+    echo "PING_INTERVAL_SECONDS=${PING_INTERVAL_SECONDS:-60}"
   } > .env
   echo "Created .env with generated credentials."
   echo "Admin password: $generated_admin_pass"

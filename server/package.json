@@ -6,7 +6,8 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "check": "node --check index.js",
+    "check": "node --check index.js && node --check test/smoke.test.js",
+    "test": "node --test test/smoke.test.js",
     "start": "node index.js"
   },
   "dependencies": {

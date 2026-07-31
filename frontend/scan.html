@@ -62,7 +62,7 @@ button:active{opacity:.7}
   <label>盘点人</label>
   <input id="by-input" placeholder="你的名字">
 
-  <button class="btn-primary" onclick="submitScan()">✓ 确认盘点</button>
+  <button class="btn-primary" id="submit-btn" onclick="submitScan()">✓ 确认盘点</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -76,6 +76,9 @@ let token = localStorage.getItem('it_token') || '';
 let assets = [];
 let scanner = null;
 let scanning = false;
+const publicSessionMode = Boolean(currentSession);
+
+function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 function toast(msg, err) {
   const t = document.getElementById('toast');
@@ -103,6 +106,42 @@ async function loadSessions() {
   updateSessionUI();
 }
 
+function applyStats(stats) {
+  document.getElementById('c-total').textContent = stats.total;
+  document.getElementById('c-scanned').textContent = stats.scanned;
+  document.getElementById('c-missing').textContent = stats.missing;
+}
+
+function populateAssets() {
+  const sel = document.getElementById('asset-select');
+  sel.innerHTML = '<option value="">— 选择资产 —</option>' +
+    assets.map(a => `<option value="${a.id}">${esc(a.hostname)} (${esc(a.ip)||'无IP'})</option>`).join('');
+  sel.onchange = () => showAsset(sel.value);
+  if (preselectAsset) { sel.value = preselectAsset; showAsset(preselectAsset); }
+}
+
+async function loadPublicInventory(showError=true) {
+  const r = await api(`/api/public/inventory/${encodeURIComponent(currentSession)}`);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    if (showError) toast(data.error || '无法读取盘点场次', true);
+    return false;
+  }
+  const sel = document.getElementById('session-select');
+  sel.innerHTML = `<option value="${data.session.id}">${esc(data.session.name)}</option>`;
+  sel.value = data.session.id;
+  sel.disabled = true;
+  document.getElementById('session-name').textContent = data.session.name;
+  assets = data.assets;
+  populateAssets();
+  applyStats(data.stats);
+  const closed = data.session.status === 'closed';
+  document.getElementById('submit-btn').disabled = closed;
+  document.getElementById('submit-btn').textContent = closed ? '盘点已结束' : '✓ 确认盘点';
+  if (closed && showError) toast('该盘点场次已经结束', true);
+  return true;
+}
+
 function updateSessionUI() {
   const sel = document.getElementById('session-select');
   document.getElementById('session-name').textContent =
@@ -117,34 +156,30 @@ function onSessionChange() {
 
 async function loadStats() {
   if (!currentSession) return;
+  if (publicSessionMode) { await loadPublicInventory(false); return; }
   const r = await api(`/api/inventory/${currentSession}/stats`);
   if (!r.ok) return;
-  const s = await r.json();
-  document.getElementById('c-total').textContent = s.total;
-  document.getElementById('c-scanned').textContent = s.scanned;
-  document.getElementById('c-missing').textContent = s.missing;
+  applyStats(await r.json());
 }
 
 async function loadAssets() {
   const r = await api('/api/assets');
   if (!r.ok) return;
   assets = await r.json();
-  const sel = document.getElementById('asset-select');
-  sel.innerHTML = '<option value="">— 选择资产 —</option>' +
-    assets.map(a => `<option value="${a.id}">${a.hostname} (${a.ip||'无IP'})</option>`).join('');
-  sel.onchange = () => showAsset(sel.value);
-  if (preselectAsset) { sel.value = preselectAsset; showAsset(preselectAsset); }
+  populateAssets();
 }
 
 function showAsset(id) {
   const a = assets.find(x => x.id === id);
   const box = document.getElementById('asset-info');
   if (!a) { box.className = 'asset-info hidden'; return; }
+  const types={computer:'电脑',server:'服务器',switch:'交换机',firewall:'防火墙',router:'路由器',wireless_ap:'无线 AP',printer:'打印机',storage:'存储',other:'其他'};
   box.className = 'asset-info';
-  box.innerHTML = `<div class="h">${a.platform==='darwin'?'🍎':'🪟'} ${a.hostname}</div>
-    <div class="r">IP: ${a.ip||'—'} · ${a.os||''} ${a.os_version||''}</div>
-    <div class="r">登记位置: ${a.location||'未设置'}</div>
-    <div class="r">部门: ${a.department||'—'} · 标签: ${a.asset_tag||'—'}</div>`;
+  box.innerHTML = `<div class="h">${types[a.asset_type]||'其他'} · ${esc(a.hostname)}</div>
+    <div class="r">IP: ${esc(a.ip)||'—'}</div>
+    <div class="r">登记位置: ${esc(a.location)||'未设置'}</div>
+    <div class="r">部门: ${esc(a.department)||'—'} · 责任人: ${esc(a.owner)||'—'}</div>
+    <div class="r">资产标签: ${esc(a.asset_tag)||'—'}</div>`;
   if (a.location) document.getElementById('loc-input').value = a.location;
 }
 
@@ -194,8 +229,11 @@ async function submitScan() {
 }
 
 (async () => {
-  await loadSessions();
-  await loadAssets();
+  if (publicSessionMode) await loadPublicInventory();
+  else {
+    await loadSessions();
+    await loadAssets();
+  }
 })();
 </script>
 </body>

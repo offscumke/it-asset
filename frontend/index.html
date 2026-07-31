@@ -39,7 +39,10 @@ header .spacer{flex:1}
 .toolbar input,.toolbar select{background:#1a1d2e;border:1px solid #2d3348;border-radius:8px;padding:10px 14px;color:#e2e8f0;font-size:14px;outline:none}
 .toolbar input.grow{flex:1;min-width:200px}
 .toolbar input:focus{border-color:#7c85f3}
+.toolbar select{min-width:130px}
+.table-wrap{overflow-x:auto;border:1px solid #2d3348;border-radius:8px}
 table{width:100%;border-collapse:collapse;background:#1a1d2e;border-radius:10px;overflow:hidden;border:1px solid #2d3348}
+.table-wrap table{border:0;border-radius:0;min-width:1050px}
 thead tr{background:#1e2235}
 th{padding:11px 14px;text-align:left;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #2d3348}
 td{padding:11px 14px;font-size:13px;border-bottom:1px solid #1e2235;vertical-align:middle}
@@ -54,6 +57,9 @@ tr:hover td{background:#1e2235}
 .badge.closed{background:#2d3348;color:#94a3b8}
 .badge.done{background:#0f2a1a;color:#34d399}
 .badge.miss{background:#2a1f0f;color:#f59e0b}
+.badge.unknown{background:#252839;color:#94a3b8;border:1px solid #3a4058}
+.badge.manual{background:#2a1f0f;color:#fbbf24;border:1px solid #78350f}
+.badge.agent{background:#0a2040;color:#60a5fa;border:1px solid #1e3a8a}
 .btn{cursor:pointer;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:500}
 .btn-vnc{background:#7c85f3;color:#fff}
 .btn-del{background:#3d1a1a;color:#f87171;margin-left:4px}
@@ -76,6 +82,11 @@ tr:hover td{background:#1e2235}
 .info-item .key{font-size:11px;color:#64748b;text-transform:uppercase}
 .info-item .val{font-size:14px;margin-top:3px;color:#e2e8f0;font-weight:500;word-break:break-all}
 .info-item input{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:6px;padding:8px;color:#e2e8f0;font-size:13px;margin-top:3px;outline:none}
+.info-item select,.info-item textarea{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:6px;padding:8px;color:#e2e8f0;font-size:13px;margin-top:3px;outline:none}
+.info-item textarea{min-height:72px;resize:vertical}
+.info-item.full{grid-column:1/-1}
+.toggle-row{display:flex;align-items:center;gap:8px;margin-top:8px;color:#cbd5e1;font-size:13px}
+.toggle-row input{width:16px;height:16px;margin:0}
 .sw-list{margin-top:20px}
 .sw-list h3{font-size:11px;color:#64748b;text-transform:uppercase;margin-bottom:10px}
 .sw-search{width:100%;background:#0f1117;border:1px solid #2d3348;border-radius:6px;padding:7px 12px;color:#e2e8f0;font-size:13px;outline:none;margin-bottom:10px}
@@ -88,6 +99,14 @@ tr:hover td{background:#1e2235}
 .toast{position:fixed;right:20px;bottom:20px;z-index:200;max-width:360px;padding:12px 16px;border-radius:8px;background:#0f2a1a;border:1px solid #065f46;color:#34d399;font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.35);opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s,transform .2s}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.error{background:#3d1a1a;border-color:#7f1d1d;color:#f87171}
+@media(max-width:800px){
+  header{padding:12px;flex-wrap:wrap}
+  .container{padding:14px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .modal{width:calc(100vw - 24px);padding:20px}
+  .info-grid{grid-template-columns:1fr}
+  .info-item.full{grid-column:auto}
+}
 </style>
 </head>
 <body>
@@ -124,21 +143,25 @@ tr:hover td{background:#1e2235}
       <div class="stats">
         <div class="stat-card"><div class="label">总资产</div><div class="value" id="s-total">0</div></div>
         <div class="stat-card"><div class="label">在线</div><div class="value" style="color:#34d399" id="s-online">0</div></div>
-        <div class="stat-card"><div class="label">Windows</div><div class="value" style="color:#60a5fa" id="s-win">0</div></div>
-        <div class="stat-card"><div class="label">macOS</div><div class="value" style="color:#c084fc" id="s-mac">0</div></div>
+        <div class="stat-card"><div class="label">Agent 电脑</div><div class="value" style="color:#60a5fa" id="s-agent">0</div></div>
+        <div class="stat-card"><div class="label">手工资产</div><div class="value" style="color:#fbbf24" id="s-manual">0</div></div>
       </div>
       <div class="toolbar">
-        <input class="grow" id="search" placeholder="搜索主机名、IP、CPU、位置…" oninput="filterAssets()">
+        <input class="grow" id="search" placeholder="搜索名称、IP、标签、部门或责任人" oninput="filterAssets()">
+        <select id="filter-type" onchange="filterAssets()"><option value="">全部类型</option></select>
+        <select id="filter-dept" onchange="filterAssets()"><option value="">全部部门</option></select>
+        <select id="filter-owner" onchange="filterAssets()"><option value="">全部责任人</option></select>
+        <button class="btn-primary" onclick="addAsset()">+ 手工录入</button>
         <button class="btn btn-refresh" onclick="loadAssets()">↻ 刷新</button>
         <button class="btn-export" onclick="exportAssets()">⬇ 导出资产 CSV</button>
       </div>
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr>
-          <th>状态</th><th>主机名</th><th>平台</th><th>IP</th><th>CPU</th>
-          <th>内存</th><th>位置</th><th>部门</th><th>最后在线</th><th>操作</th>
+          <th>状态</th><th>资产</th><th>类型/来源</th><th>IP</th>
+          <th>部门/责任人</th><th>位置</th><th>最后检测</th><th>操作</th>
         </tr></thead>
         <tbody id="asset-table"></tbody>
-      </table>
+      </table></div>
     </div>
 
     <!-- INVENTORY TAB -->
@@ -221,53 +244,89 @@ function switchTab(tab) {
   if (tab==='inventory') loadSessions();
 }
 
-function isOnline(l){ return l && (Date.now()-new Date(l+'Z').getTime())<3e5; }
+const ASSET_TYPES = {
+  computer:['电脑','💻'], server:['服务器','▣'], switch:['交换机','⇄'],
+  firewall:['防火墙','◆'], router:['路由器','⇆'], wireless_ap:['无线 AP','⌁'],
+  printer:['打印机','▤'], storage:['存储','▥'], other:['其他','◇']
+};
+function esc(value){ return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function isOnline(a){ return a?.online_status==='online'; }
 function fmtBytes(b){ if(!b)return '—'; return b>1e9?(b/1e9).toFixed(1)+' GB':(b/1e6).toFixed(0)+' MB'; }
 function fmtDate(d){ return d?new Date(d+'Z').toLocaleString('zh-CN'):'—'; }
 function pct(u,t){ return t?Math.round(u/t*100):0; }
 function bar(p){ const c=p>90?'danger':p>70?'warn':''; return `<div class="progress"><div class="progress-bar ${c}" style="width:${p}%"></div></div>`; }
+function typeMeta(type){ return ASSET_TYPES[type]||ASSET_TYPES.other; }
+function typeOptions(selected='', includeComputer=true){
+  return Object.entries(ASSET_TYPES).filter(([value])=>includeComputer||value!=='computer').map(([value,[label]]) =>
+    `<option value="${value}" ${value===selected?'selected':''}>${label}</option>`).join('');
+}
 async function loadAssets() {
   const r = await apiFetch('/api/assets'); if (!r) return;
   allAssets = await r.json();
-  renderAssets(allAssets);
+  refreshAssetFilters();
+  filterAssets();
+}
+
+function refreshAssetFilters() {
+  const typeSelect=document.getElementById('filter-type');
+  const deptSelect=document.getElementById('filter-dept');
+  const ownerSelect=document.getElementById('filter-owner');
+  const values={type:typeSelect.value,dept:deptSelect.value,owner:ownerSelect.value};
+  typeSelect.innerHTML='<option value="">全部类型</option>'+typeOptions();
+  const optionList=(items,empty)=>'<option value="">'+empty+'</option>'+
+    [...new Set(items.filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  deptSelect.innerHTML=optionList(allAssets.map(a=>a.department),'全部部门');
+  ownerSelect.innerHTML=optionList(allAssets.map(a=>a.owner),'全部责任人');
+  typeSelect.value=values.type; deptSelect.value=values.dept; ownerSelect.value=values.owner;
 }
 
 function filterAssets() {
-  const q = document.getElementById('search').value.toLowerCase();
-  renderAssets(allAssets.filter(a =>
-    (a.hostname||'').toLowerCase().includes(q) || (a.ip||'').includes(q) ||
-    (a.cpu||'').toLowerCase().includes(q) || (a.location||'').toLowerCase().includes(q) ||
-    (a.department||'').toLowerCase().includes(q)));
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const type=document.getElementById('filter-type').value;
+  const dept=document.getElementById('filter-dept').value;
+  const owner=document.getElementById('filter-owner').value;
+  renderAssets(allAssets.filter(a=>{
+    const text=[a.hostname,a.ip,a.asset_tag,a.department,a.owner,a.location,a.manufacturer,a.model]
+      .filter(Boolean).join(' ').toLowerCase();
+    return (!q||text.includes(q))&&(!type||a.asset_type===type)&&
+      (!dept||a.department===dept)&&(!owner||a.owner===owner);
+  }));
 }
 
 function renderAssets(assets) {
-  document.getElementById('s-total').textContent = assets.length;
-  document.getElementById('s-online').textContent = assets.filter(a=>isOnline(a.last_seen)).length;
-  document.getElementById('s-win').textContent = assets.filter(a=>a.platform==='windows').length;
-  document.getElementById('s-mac').textContent = assets.filter(a=>a.platform==='darwin').length;
+  document.getElementById('s-total').textContent=allAssets.length;
+  document.getElementById('s-online').textContent=allAssets.filter(isOnline).length;
+  document.getElementById('s-agent').textContent=allAssets.filter(a=>a.source==='agent').length;
+  document.getElementById('s-manual').textContent=allAssets.filter(a=>a.source==='manual').length;
   if (!assets.length) {
-    document.getElementById('asset-table').innerHTML='<tr><td colspan="10" class="empty">暂无资产</td></tr>'; return;
+    document.getElementById('asset-table').innerHTML='<tr><td colspan="8" class="empty">暂无匹配资产</td></tr>'; return;
   }
   document.getElementById('asset-table').innerHTML = assets.map(a=>{
-    const on=isOnline(a.last_seen);
-    const ru=(a.ram_total||0)-(a.ram_free||0);
-    const plat=a.platform==='darwin'?'<span class="badge mac">🍎 macOS</span>':'<span class="badge win">🪟 Win</span>';
+    const [typeLabel,typeIcon]=typeMeta(a.asset_type);
+    const status=a.online_status||'unknown';
+    const statusLabel=status==='online'?'● 在线':status==='offline'?'○ 离线':'— 未检测';
+    const checkedAt=a.source==='manual'?a.last_ping_at:a.last_seen;
+    const source=a.source==='manual'?
+      '<span class="badge manual">手工</span>':'<span class="badge agent">Agent</span>';
+    const vnc=a.source==='agent'&&a.ip?
+      `<button class="btn btn-vnc" onclick="launchVNC('${esc(a.ip)}',${a.vnc_port||5900})">VNC</button>`:'';
+    const ping=a.source==='manual'&&a.ip?
+      `<button class="btn btn-refresh" onclick="pingAsset('${a.id}')">Ping</button>`:'';
     return `<tr>
-      <td><span class="badge ${on?'online':'offline'}">${on?'● 在线':'○ 离线'}</span></td>
-      <td><strong>${a.hostname||'—'}</strong></td>
-      <td>${plat}</td>
-      <td style="font-family:monospace;font-size:12px">${a.ip||'—'}</td>
-      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.cpu||''}">${a.cpu||'—'}</td>
-      <td style="min-width:100px">${fmtBytes(ru)}/${fmtBytes(a.ram_total)}${bar(pct(ru,a.ram_total))}</td>
-      <td>${a.location||'<span style="color:#64748b">未设置</span>'}</td>
-      <td>${a.department||'—'}</td>
-      <td style="font-size:11px;color:#64748b;white-space:nowrap">${fmtDate(a.last_seen)}</td>
+      <td><span class="badge ${status}">${statusLabel}</span></td>
+      <td><strong>${esc(a.hostname)||'—'}</strong><div class="sw-ver">${esc(a.asset_tag)||'无资产标签'}</div></td>
+      <td><div>${typeIcon} ${typeLabel}</div><div style="margin-top:4px">${source}</div></td>
+      <td style="font-family:monospace;font-size:12px">${esc(a.ip)||'—'}</td>
+      <td><div>${esc(a.department)||'未分配部门'}</div><div class="sw-ver">${esc(a.owner)||'未分配责任人'}</div></td>
+      <td>${esc(a.location)||'<span style="color:#64748b">未设置</span>'}</td>
+      <td style="font-size:11px;color:#64748b;white-space:nowrap">${fmtDate(checkedAt)}
+        <div>${a.source==='manual'?'Ping':'Agent'}${a.ping_latency_ms!=null?' · '+a.ping_latency_ms+' ms':''}</div></td>
       <td style="white-space:nowrap">
         <button class="btn btn-detail" onclick="showDetail('${a.id}')">详情</button>
         <button class="btn btn-edit" onclick="editAsset('${a.id}')">编辑</button>
-        <button class="btn btn-qr" onclick="showQR('${a.id}','${a.hostname}')">QR</button>
-        <button class="btn btn-vnc" onclick="launchVNC('${a.ip}',${a.vnc_port||5900})">VNC</button>
-        <button class="btn btn-del" onclick="deleteAsset('${a.id}','${a.hostname}')">删</button>
+        <button class="btn btn-qr" onclick="showQR('${a.id}')">QR</button>
+        ${ping}${vnc}
+        <button class="btn btn-del" onclick="deleteAsset('${a.id}')">删</button>
       </td></tr>`;
   }).join('');
 }
@@ -275,84 +334,213 @@ function renderAssets(assets) {
 async function showDetail(id) {
   const r = await apiFetch(`/api/assets/${id}`); if(!r) return;
   const a = await r.json();
-  const ru=(a.ram_total||0)-(a.ram_free||0), du=(a.disk_total||0)-(a.disk_free||0);
+  const [typeLabel,typeIcon]=typeMeta(a.asset_type);
   document.getElementById('modal-name').textContent=a.hostname;
-  document.getElementById('modal-icon').textContent=a.platform==='darwin'?'🍎':'🪟';
+  document.getElementById('modal-icon').textContent=typeIcon;
+  const checkedAt=a.source==='manual'?a.last_ping_at:a.last_seen;
+  const statusLabel=a.online_status==='online'?'在线':a.online_status==='offline'?'离线':'未检测';
+  const technical=a.source==='agent'?`<div class="info-grid" style="margin-top:14px">
+    <div class="info-item"><div class="key">操作系统</div><div class="val">${esc(a.os)||'—'} ${esc(a.os_version)}</div></div>
+    <div class="info-item"><div class="key">CPU</div><div class="val">${esc(a.cpu)||'—'} (${a.cpu_cores||'?'} 核)</div></div>
+    <div class="info-item"><div class="key">内存</div><div class="val">${fmtBytes(a.ram_total)}</div></div>
+    <div class="info-item"><div class="key">磁盘</div><div class="val">${fmtBytes(a.disk_total)}</div></div>
+  </div>`:'';
   let sw='';
   if(a.software&&a.software.length){
     sw=`<div class="sw-list"><h3>已安装软件 (${a.software.length})</h3>
-      <input class="sw-search" placeholder="搜索软件…" oninput="filterSW(this)" data-sw='${JSON.stringify(a.software).replace(/'/g,"&#39;")}'>
-      <div class="sw-scroll" id="sw-scroll">${a.software.map(s=>`<div class="sw-item"><span>${s.name}</span><span class="sw-ver">${s.version||''}</span></div>`).join('')}</div></div>`;
+      <input class="sw-search" placeholder="搜索软件…" oninput="filterSW(this)" data-sw="${encodeURIComponent(JSON.stringify(a.software))}">
+      <div class="sw-scroll" id="sw-scroll">${a.software.map(s=>`<div class="sw-item"><span>${esc(s.name)}</span><span class="sw-ver">${esc(s.version)}</span></div>`).join('')}</div></div>`;
   }
   document.getElementById('modal-body').innerHTML=`<div class="info-grid">
-    <div class="info-item"><div class="key">IP</div><div class="val">${a.ip||'—'}</div></div>
-    <div class="info-item"><div class="key">MAC</div><div class="val" style="font-size:12px">${a.mac_address||'—'}</div></div>
-    <div class="info-item"><div class="key">操作系统</div><div class="val">${a.os||'—'} ${a.os_version||''}</div></div>
-    <div class="info-item"><div class="key">CPU</div><div class="val">${a.cpu||'—'} (${a.cpu_cores||'?'}核)</div></div>
-    <div class="info-item"><div class="key">内存</div><div class="val">${fmtBytes(ru)}/${fmtBytes(a.ram_total)}</div>${bar(pct(ru,a.ram_total))}</div>
-    <div class="info-item"><div class="key">磁盘</div><div class="val">${fmtBytes(du)}/${fmtBytes(a.disk_total)}</div>${bar(pct(du,a.disk_total))}</div>
-    <div class="info-item"><div class="key">位置</div><div class="val">${a.location||'未设置'}</div></div>
-    <div class="info-item"><div class="key">部门</div><div class="val">${a.department||'—'}</div></div>
-    <div class="info-item"><div class="key">资产标签</div><div class="val">${a.asset_tag||'—'}</div></div>
-    <div class="info-item"><div class="key">最后在线</div><div class="val">${fmtDate(a.last_seen)}</div></div>
-  </div>${sw}`;
+    <div class="info-item"><div class="key">资产类型</div><div class="val">${typeLabel}</div></div>
+    <div class="info-item"><div class="key">数据来源</div><div class="val">${a.source==='agent'?'Agent 自动采集':'手工录入'}</div></div>
+    <div class="info-item"><div class="key">厂商 / 型号</div><div class="val">${esc(a.manufacturer)||'—'} / ${esc(a.model)||'—'}</div></div>
+    <div class="info-item"><div class="key">序列号</div><div class="val">${esc(a.serial_number)||'—'}</div></div>
+    <div class="info-item"><div class="key">IP / MAC</div><div class="val">${esc(a.ip)||'—'} / ${esc(a.mac_address)||'—'}</div></div>
+    <div class="info-item"><div class="key">部门 / 责任人</div><div class="val">${esc(a.department)||'—'} / ${esc(a.owner)||'—'}</div></div>
+    <div class="info-item"><div class="key">位置</div><div class="val">${esc(a.location)||'未设置'}</div></div>
+    <div class="info-item"><div class="key">资产标签</div><div class="val">${esc(a.asset_tag)||'—'}</div></div>
+    <div class="info-item"><div class="key">状态</div><div class="val">${statusLabel}</div></div>
+    <div class="info-item"><div class="key">最后检测</div><div class="val">${fmtDate(checkedAt)}</div></div>
+    ${a.notes?`<div class="info-item full"><div class="key">备注</div><div class="val">${esc(a.notes)}</div></div>`:''}
+  </div>${technical}${a.source==='manual'&&a.ip?`<button class="btn-primary" style="margin-top:16px" onclick="pingAsset('${a.id}',true)">立即 Ping</button>`:''}${sw}`;
   document.getElementById('modal').classList.add('open');
 }
 
 function filterSW(input){
-  const q=input.value.toLowerCase(), sw=JSON.parse(input.dataset.sw);
+  const q=input.value.toLowerCase(), sw=JSON.parse(decodeURIComponent(input.dataset.sw));
   document.getElementById('sw-scroll').innerHTML=sw.filter(s=>s.name.toLowerCase().includes(q))
-    .map(s=>`<div class="sw-item"><span>${s.name}</span><span class="sw-ver">${s.version||''}</span></div>`).join('')||'<div style="color:#64748b;padding:10px 0">无匹配</div>';
+    .map(s=>`<div class="sw-item"><span>${esc(s.name)}</span><span class="sw-ver">${esc(s.version)}</span></div>`).join('')||'<div style="color:#64748b;padding:10px 0">无匹配</div>';
 }
-function editAsset(id) {
-  const a = allAssets.find(x=>x.id===id); if(!a) return;
-  document.getElementById('modal-name').textContent='编辑 '+a.hostname;
-  document.getElementById('modal-icon').textContent='✏️';
-  document.getElementById('modal-body').innerHTML=`<div class="info-grid">
-    <div class="info-item"><div class="key">位置</div><input id="e-loc" value="${a.location||''}" placeholder="如：3楼A区 A12"></div>
-    <div class="info-item"><div class="key">部门</div><input id="e-dept" value="${a.department||''}" placeholder="如：研发部"></div>
-    <div class="info-item"><div class="key">资产标签</div><input id="e-tag" value="${a.asset_tag||''}" placeholder="如：IT-2026-001"></div>
-  </div>
-  <button class="btn-primary" style="margin-top:20px;width:100%" onclick="saveAsset('${id}')">保存</button>`;
-  document.getElementById('modal').classList.add('open');
-}
-
-async function saveAsset(id) {
-  await apiFetch(`/api/assets/${id}`, { method:'PATCH', body: JSON.stringify({
-    location: document.getElementById('e-loc').value,
-    department: document.getElementById('e-dept').value,
-    asset_tag: document.getElementById('e-tag').value }) });
-  closeModal(); loadAssets();
-}
-
-function showQR(id, hostname) {
+function showQR(id) {
+  const asset=allAssets.find(a=>a.id===id);
+  const imageUrl=`/api/assets/${encodeURIComponent(id)}/qr`;
+  const detailUrl=`${location.origin}/asset?id=${encodeURIComponent(id)}`;
   document.getElementById('modal-name').textContent='资产二维码';
   document.getElementById('modal-icon').textContent='🔳';
   document.getElementById('modal-body').innerHTML=`<div class="qr-box">
-    <img src="/api/assets/${id}/qr" alt="QR" onerror="this.src=''">
-    <p><strong>${hostname}</strong></p>
-    <p>打印贴到设备上，用手机扫码即可盘点</p>
-    <button class="btn-primary" style="margin-top:12px" onclick="window.open('/api/assets/${id}/qr')">下载/打印二维码</button>
+    <img src="${imageUrl}" alt="资产二维码">
+    <p><strong>${esc(asset?.hostname)||'资产'}</strong></p>
+    <p>扫码可查看资产类型、归属、位置和在线状态</p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+      <button class="btn-primary" onclick="window.open('${detailUrl}','_blank')">打开详情</button>
+      <button class="btn btn-refresh" style="padding:10px 18px" onclick="window.open('${imageUrl}','_blank')">打印二维码</button>
+    </div>
   </div>`;
   document.getElementById('modal').classList.add('open');
 }
 
-function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+// ── Add/Edit Asset Modals ─────────────────────────────────────────────────────────────
+function addAsset() {
+  const departments=[...new Set(allAssets.map(a=>a.department).filter(Boolean))].sort();
+  const owners=[...new Set(allAssets.map(a=>a.owner).filter(Boolean))].sort();
+  document.getElementById('modal-name').textContent='手工录入资产';
+  document.getElementById('modal-icon').textContent='＋';
+  document.getElementById('modal-body').innerHTML=`<div class="info-grid">
+    <div class="info-item"><div class="key">资产类型</div><select id="new-type">${typeOptions('switch',false)}</select></div>
+    <div class="info-item"><div class="key">资产名称 *</div><input id="new-hostname" placeholder="如：核心交换机-01"></div>
+    <div class="info-item"><div class="key">厂商</div><input id="new-manufacturer"></div>
+    <div class="info-item"><div class="key">型号</div><input id="new-model"></div>
+    <div class="info-item"><div class="key">序列号</div><input id="new-serial"></div>
+    <div class="info-item"><div class="key">资产标签</div><input id="new-tag"></div>
+    <div class="info-item"><div class="key">IP 地址</div><input id="new-ip" inputmode="decimal"></div>
+    <div class="info-item"><div class="key">MAC 地址</div><input id="new-mac"></div>
+    <div class="info-item"><div class="key">部门</div><input id="new-dept" list="dept-list"></div>
+    <div class="info-item"><div class="key">责任人</div><input id="new-owner" list="owner-list"></div>
+    <div class="info-item"><div class="key">位置</div><input id="new-loc"></div>
+    <div class="info-item full"><div class="key">备注</div><textarea id="new-notes"></textarea></div>
+  </div>
+  <datalist id="dept-list">${departments.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>
+  <datalist id="owner-list">${owners.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>
+  <label class="toggle-row"><input id="new-ping" type="checkbox" checked>启用 Ping 在线监测</label>
+  <button class="btn-primary" style="margin-top:20px;width:100%" onclick="submitNewAsset()">保存资产</button>`;
+  document.getElementById('modal').classList.add('open');
+}
+
+async function submitNewAsset() {
+  const hostname = document.getElementById('new-hostname').value.trim();
+  if (!hostname) { showToast('请输入资产名称',true); return; }
+  const payload = {
+    hostname,
+    asset_type: document.getElementById('new-type').value,
+    manufacturer: document.getElementById('new-manufacturer').value,
+    model: document.getElementById('new-model').value,
+    serial_number: document.getElementById('new-serial').value,
+    ip: document.getElementById('new-ip').value || null,
+    mac_address: document.getElementById('new-mac').value || null,
+    department: document.getElementById('new-dept').value || null,
+    owner: document.getElementById('new-owner').value || null,
+    location: document.getElementById('new-loc').value || null,
+    asset_tag: document.getElementById('new-tag').value || null,
+    notes: document.getElementById('new-notes').value || null,
+    ping_enabled: document.getElementById('new-ping').checked
+  };
+  const r = await apiFetch('/api/assets', { method:'POST', body: JSON.stringify(payload) });
+  if (!r) return;
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { showToast(data.error || '创建失败',true); return; }
+  closeModal(); await loadAssets(); showToast('已添加资产');
+}
+
+async function editAsset(id) {
+  const a = allAssets.find(x => x.id === id);
+  if (!a) return;
+  const manual = a.source === 'manual';
+  const departments=[...new Set(allAssets.map(item=>item.department).filter(Boolean))].sort();
+  const owners=[...new Set(allAssets.map(item=>item.owner).filter(Boolean))].sort();
+  document.getElementById('modal-name').textContent = '编辑 ' + a.hostname;
+  document.getElementById('modal-icon').textContent = typeMeta(a.asset_type)[1];
+  document.getElementById('modal-body').innerHTML = `
+    <div class="info-grid">
+      ${manual?`<div class="info-item"><div class="key">资产类型</div><select id="e-type">${typeOptions(a.asset_type,false)}</select></div>
+      <div class="info-item"><div class="key">资产名称 *</div><input id="e-hostname" value="${esc(a.hostname)}"></div>`:
+      `<div class="info-item"><div class="key">资产类型</div><div class="val">${typeMeta(a.asset_type)[0]}</div></div>
+      <div class="info-item"><div class="key">资产名称</div><div class="val">${esc(a.hostname)}</div></div>`}
+      <div class="info-item"><div class="key">厂商</div><input id="e-manufacturer" value="${esc(a.manufacturer)}"></div>
+      <div class="info-item"><div class="key">型号</div><input id="e-model" value="${esc(a.model)}"></div>
+      <div class="info-item"><div class="key">序列号</div><input id="e-serial" value="${esc(a.serial_number)}"></div>
+      <div class="info-item"><div class="key">资产标签</div><input id="e-tag" value="${esc(a.asset_tag)}"></div>
+      ${manual?`<div class="info-item"><div class="key">IP 地址</div><input id="e-ip" inputmode="decimal" value="${esc(a.ip)}"></div>
+      <div class="info-item"><div class="key">MAC 地址</div><input id="e-mac" value="${esc(a.mac_address)}"></div>`:
+      `<div class="info-item"><div class="key">Agent IP / MAC</div><div class="val">${esc(a.ip)||'—'} / ${esc(a.mac_address)||'—'}</div></div>`}
+      <div class="info-item"><div class="key">部门</div><input id="e-dept" list="edit-dept-list" value="${esc(a.department)}"></div>
+      <div class="info-item"><div class="key">责任人</div><input id="e-owner" list="edit-owner-list" value="${esc(a.owner)}"></div>
+      <div class="info-item"><div class="key">位置</div><input id="e-loc" value="${esc(a.location)}"></div>
+      <div class="info-item full"><div class="key">备注</div><textarea id="e-notes">${esc(a.notes)}</textarea></div>
+    </div>
+    <datalist id="edit-dept-list">${departments.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>
+    <datalist id="edit-owner-list">${owners.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>
+    ${manual?`<label class="toggle-row"><input id="e-ping" type="checkbox" ${a.ping_enabled?'checked':''}>启用 Ping 在线监测</label>`:
+    '<div class="sw-ver" style="margin-top:12px">主机名、IP 和硬件配置由 Agent 自动维护。</div>'}
+    <button class="btn-primary" style="margin-top:20px;width:100%" onclick="saveAsset('${id}')">保存</button>`;
+  document.getElementById('modal').classList.add('open');
+}
+
+async function saveAsset(id) {
+  const asset = allAssets.find(a=>a.id===id);
+  if (!asset) return;
+  const data = {
+    manufacturer: document.getElementById('e-manufacturer').value || null,
+    model: document.getElementById('e-model').value || null,
+    serial_number: document.getElementById('e-serial').value || null,
+    department: document.getElementById('e-dept').value,
+    owner: document.getElementById('e-owner').value,
+    location: document.getElementById('e-loc').value,
+    asset_tag: document.getElementById('e-tag').value,
+    notes: document.getElementById('e-notes').value || null
+  };
+  if (asset.source === 'manual') {
+    const hostname=document.getElementById('e-hostname').value.trim();
+    if (!hostname) { showToast('资产名称不能为空',true); return; }
+    Object.assign(data, {
+      hostname,
+      asset_type: document.getElementById('e-type').value,
+      ip: document.getElementById('e-ip').value || null,
+      mac_address: document.getElementById('e-mac').value || null,
+      ping_enabled: document.getElementById('e-ping').checked
+    });
+  }
+  const r = await apiFetch(`/api/assets/${id}`, { method:'PATCH', body: JSON.stringify(data) });
+  if (!r) return;
+  const result=await r.json().catch(()=>({}));
+  if (!r.ok) { showToast(result.error||'保存失败',true); return; }
+  closeModal(); await loadAssets(); showToast('资产信息已保存');
+}
+
+async function pingAsset(id, keepModal=false) {
+  const asset=allAssets.find(a=>a.id===id);
+  const r=await apiFetch(`/api/assets/${id}/ping`,{method:'POST'});
+  if(!r)return;
+  const result=await r.json().catch(()=>({}));
+  if(!r.ok){showToast(result.error||'Ping 检测失败',true);return;}
+  await loadAssets();
+  showToast(`${asset?.hostname||'资产'}：${result.online_status==='online'?'在线':'离线'}${result.ping_latency_ms!=null?' · '+result.ping_latency_ms+' ms':''}`,
+    result.online_status!=='online');
+  if(keepModal) await showDetail(id);
+}
+
 function launchVNC(ip,port){ if(confirm(`通过 VNC 连接到 ${ip}:${port}？\n请确保目标机已启用 VNC。`)) location.href=`vnc://${ip}:${port}`; }
-async function deleteAsset(id,h) {
-  if(!confirm(`删除资产 "${h}"？\n\n该设备的 Agent 若仍在运行，下次上报时会重新加入。`)) return;
+async function deleteAsset(id) {
+  const asset=allAssets.find(a=>a.id===id);
+  if(!asset)return;
+  const note=asset.source==='agent'?'\n\n该设备的 Agent 若仍在运行，下次上报时会重新加入。':'';
+  if(!confirm(`删除资产 "${asset.hostname}"？${note}`)) return;
   try {
     const r = await apiFetch(`/api/assets/${id}`, { method:'DELETE' });
     if(!r) return;
     const data = await r.json().catch(() => ({}));
     if(!r.ok) throw new Error(data.error || '删除失败');
     allAssets = allAssets.filter(a => a.id !== id);
-    renderAssets(allAssets);
-    showToast(`已删除资产：${h}`);
+    refreshAssetFilters();
+    filterAssets();
+    showToast(`已删除资产：${asset.hostname}`);
   } catch (error) {
     showToast(error.message || '删除失败，请稍后重试', true);
   }
 }
+
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
 
 async function downloadWithAuth(url, filename) {
   try {

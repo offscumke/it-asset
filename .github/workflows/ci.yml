@@ -16,6 +16,7 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - run: npm ci --prefix server
       - run: npm run check --prefix server
+      - run: npm test --prefix server
       - run: npm audit --omit=dev --prefix server
       - run: bash -n scripts/deploy.sh scripts/backup.sh scripts/import-db.sh
       - run: docker compose --env-file .env.example config --quiet

@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const net = require('net');
 const path = require('path');
+const { execFile } = require('child_process');
 const { DatabaseSync } = require('node:sqlite');
 const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
@@ -25,6 +27,12 @@ const ADMIN_PASS_HASH = bcrypt.hashSync(getSecret('ADMIN_PASS', 'admin123'), 10)
 const AGENT_SECRET = getSecret('AGENT_SECRET', 'agent-shared-secret');
 const DB_PATH = path.resolve(process.env.DB_PATH || path.join(__dirname, 'assets.db'));
 const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+const PING_INTERVAL_SECONDS = Math.max(15, Number(process.env.PING_INTERVAL_SECONDS) || 60);
+const PING_TIMEOUT_MS = 4000;
+const ASSET_TYPES = new Set([
+  'computer', 'server', 'switch', 'firewall', 'router',
+  'wireless_ap', 'printer', 'storage', 'other'
+]);
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
@@ -64,7 +72,18 @@ db.exec(`
     vnc_port INTEGER DEFAULT 5900,
     location TEXT,
     department TEXT,
+    owner TEXT,
     asset_tag TEXT,
+    asset_type TEXT DEFAULT 'computer',
+    source TEXT DEFAULT 'agent',
+    manufacturer TEXT,
+    model TEXT,
+    serial_number TEXT,
+    notes TEXT,
+    ping_enabled INTEGER DEFAULT 0,
+    ping_status TEXT DEFAULT 'unknown',
+    last_ping_at TEXT,
+    ping_latency_ms REAL,
     last_seen TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
@@ -96,10 +115,100 @@ db.exec(`
   );
 `);
 
-// Migrate: add columns if not exists (safe to run multiple times)
-['location TEXT','department TEXT','asset_tag TEXT'].forEach(col => {
-  try { db.exec(`ALTER TABLE assets ADD COLUMN ${col}`); } catch {}
-});
+// Additive migration keeps databases created by earlier releases usable.
+const assetColumns = {
+  location: 'TEXT',
+  department: 'TEXT',
+  owner: 'TEXT',
+  asset_tag: 'TEXT',
+  asset_type: "TEXT DEFAULT 'computer'",
+  source: "TEXT DEFAULT 'agent'",
+  manufacturer: 'TEXT',
+  model: 'TEXT',
+  serial_number: 'TEXT',
+  notes: 'TEXT',
+  ping_enabled: 'INTEGER DEFAULT 0',
+  ping_status: "TEXT DEFAULT 'unknown'",
+  last_ping_at: 'TEXT',
+  ping_latency_ms: 'REAL'
+};
+const existingAssetColumns = new Set(
+  db.prepare('PRAGMA table_info(assets)').all().map(column => column.name)
+);
+for (const [name, definition] of Object.entries(assetColumns)) {
+  if (!existingAssetColumns.has(name)) db.exec(`ALTER TABLE assets ADD COLUMN ${name} ${definition}`);
+}
+db.exec(`
+  UPDATE assets SET asset_type='computer' WHERE asset_type IS NULL OR asset_type='';
+  UPDATE assets SET source='agent' WHERE source IS NULL OR source='';
+  UPDATE assets SET ping_enabled=0 WHERE ping_enabled IS NULL;
+  UPDATE assets SET ping_status='unknown' WHERE ping_status IS NULL OR ping_status='';
+`);
+
+function cleanText(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const text = String(value).trim();
+  return text || null;
+}
+
+function normalizeIp(value) {
+  const ip = cleanText(value);
+  if (ip && !net.isIP(ip)) throw new Error('IP 地址格式不正确');
+  return ip;
+}
+
+function assetOnlineStatus(asset) {
+  if (asset.source === 'manual') {
+    if (!asset.ping_enabled || !asset.ip) return 'unknown';
+    return asset.ping_status === 'online' ? 'online' :
+      asset.ping_status === 'offline' ? 'offline' : 'unknown';
+  }
+  if (!asset.last_seen) return 'offline';
+  const lastSeen = new Date(`${asset.last_seen}Z`).getTime();
+  return Date.now() - lastSeen < 300000 ? 'online' : 'offline';
+}
+
+function assetResponse(asset) {
+  if (!asset) return asset;
+  return { ...asset, online_status: assetOnlineStatus(asset) };
+}
+
+function publicAssetResponse(asset) {
+  const row = assetResponse(asset);
+  if (!row) return row;
+  const fields = [
+    'id', 'hostname', 'asset_type', 'source', 'manufacturer', 'model',
+    'serial_number', 'ip', 'mac_address', 'location', 'department', 'owner',
+    'asset_tag', 'notes', 'online_status', 'last_seen', 'last_ping_at',
+    'ping_latency_ms'
+  ];
+  return Object.fromEntries(fields.map(field => [field, row[field] ?? null]));
+}
+
+function pingHost(ip) {
+  const wait = process.platform === 'darwin' ? '2000' : '2';
+  const args = ['-c', '1', '-W', wait, ip];
+  return new Promise(resolve => {
+    const startedAt = Date.now();
+    execFile(process.env.PING_BINARY || 'ping', args, { timeout: PING_TIMEOUT_MS },
+      (error, stdout = '') => {
+        const match = stdout.match(/time[=<]\s*([\d.]+)\s*ms/i);
+        resolve({
+          online: !error,
+          latency_ms: match ? Number(match[1]) : (!error ? Date.now() - startedAt : null)
+        });
+      });
+  });
+}
+
+async function checkAssetPing(asset) {
+  if (!asset?.ip || !net.isIP(asset.ip)) throw new Error('资产没有有效的 IP 地址');
+  const result = await pingHost(asset.ip);
+  db.prepare(`UPDATE assets SET ping_status=?,last_ping_at=datetime('now'),ping_latency_ms=? WHERE id=?`)
+    .run(result.online ? 'online' : 'offline', result.latency_ms, asset.id);
+  return assetResponse(db.prepare('SELECT * FROM assets WHERE id=?').get(asset.id));
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
@@ -128,13 +237,15 @@ app.post('/api/checkin', requireAgentOrAuth, (req, res) => {
   const id = existing ? existing.id : uuidv4();
   db.prepare(`
     INSERT INTO assets (id,hostname,platform,ip,mac_address,cpu,cpu_cores,
-      ram_total,ram_free,disk_total,disk_free,os,os_version,vnc_port,last_seen)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+      ram_total,ram_free,disk_total,disk_free,os,os_version,vnc_port,
+      asset_type,source,ping_enabled,ping_status,last_seen)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'computer','agent',0,'unknown',datetime('now'))
     ON CONFLICT(id) DO UPDATE SET
       platform=excluded.platform,ip=excluded.ip,mac_address=excluded.mac_address,
       cpu=excluded.cpu,cpu_cores=excluded.cpu_cores,ram_total=excluded.ram_total,
       ram_free=excluded.ram_free,disk_total=excluded.disk_total,disk_free=excluded.disk_free,
       os=excluded.os,os_version=excluded.os_version,vnc_port=excluded.vnc_port,
+      asset_type='computer',source='agent',ping_enabled=0,ping_status='unknown',
       last_seen=datetime('now')
   `).run(id,d.hostname,d.platform||null,d.ip||null,d.mac_address||null,
     d.cpu||null,d.cpu_cores||null,d.ram_total||null,d.ram_free||null,
@@ -149,22 +260,135 @@ app.post('/api/checkin', requireAgentOrAuth, (req, res) => {
 
 // ── Assets CRUD ───────────────────────────────────────────────────────────────
 app.get('/api/assets', requireAuth, (req, res) => {
-  res.json(db.prepare('SELECT * FROM assets ORDER BY last_seen DESC').all());
+  const assets = db.prepare(`
+    SELECT * FROM assets
+    ORDER BY COALESCE(last_seen,last_ping_at,created_at) DESC, hostname
+  `).all();
+  res.json(assets.map(assetResponse));
 });
 
 app.get('/api/assets/:id', requireAuth, (req, res) => {
   const asset = db.prepare('SELECT * FROM assets WHERE id=?').get(req.params.id);
   if (!asset) return res.status(404).json({ error: 'not found' });
   asset.software = db.prepare('SELECT name,version FROM software WHERE asset_id=? ORDER BY name').all(asset.id);
-  res.json(asset);
+  res.json(assetResponse(asset));
+});
+
+app.get('/api/public/assets/:id', (req, res) => {
+  const asset = db.prepare('SELECT * FROM assets WHERE id=?').get(req.params.id);
+  if (!asset) return res.status(404).json({ error: 'not found' });
+  res.json(publicAssetResponse(asset));
+});
+
+app.post('/api/assets', requireAuth, (req, res) => {
+  const body = req.body || {};
+  const hostname = cleanText(body.hostname);
+  const assetType = cleanText(body.asset_type) || 'other';
+  if (!hostname) return res.status(400).json({ error: '资产名称不能为空' });
+  if (!ASSET_TYPES.has(assetType)) return res.status(400).json({ error: '资产类型不受支持' });
+  if (assetType === 'computer') {
+    return res.status(400).json({ error: '电脑类资产请通过 Agent 自动上报' });
+  }
+  if (db.prepare('SELECT id FROM assets WHERE hostname=?').get(hostname)) {
+    return res.status(409).json({ error: '资产名称已存在' });
+  }
+
+  let ip;
+  try { ip = normalizeIp(body.ip) ?? null; }
+  catch (error) { return res.status(400).json({ error: error.message }); }
+
+  const pingEnabled = body.ping_enabled === false ? 0 : (ip ? 1 : 0);
+  const id = uuidv4();
+  db.prepare(`
+    INSERT INTO assets (
+      id,hostname,asset_type,source,manufacturer,model,serial_number,ip,mac_address,
+      location,department,owner,asset_tag,notes,ping_enabled,ping_status
+    ) VALUES (?,?,?,'manual',?,?,?,?,?,?,?,?,?,?,?,'unknown')
+  `).run(
+    id, hostname, assetType, cleanText(body.manufacturer) ?? null, cleanText(body.model) ?? null,
+    cleanText(body.serial_number) ?? null, ip, cleanText(body.mac_address) ?? null,
+    cleanText(body.location) ?? null, cleanText(body.department) ?? null,
+    cleanText(body.owner) ?? null, cleanText(body.asset_tag) ?? null,
+    cleanText(body.notes) ?? null, pingEnabled
+  );
+  res.status(201).json(assetResponse(db.prepare('SELECT * FROM assets WHERE id=?').get(id)));
 });
 
 app.patch('/api/assets/:id', requireAuth, (req, res) => {
-  const { location, department, asset_tag } = req.body || {};
-  db.prepare(`UPDATE assets SET location=COALESCE(?,location), department=COALESCE(?,department),
-    asset_tag=COALESCE(?,asset_tag) WHERE id=?`)
-    .run(location ?? null, department ?? null, asset_tag ?? null, req.params.id);
-  res.json({ ok: true });
+  const asset = db.prepare('SELECT * FROM assets WHERE id=?').get(req.params.id);
+  if (!asset) return res.status(404).json({ error: 'asset not found' });
+  const body = req.body || {};
+  if (asset.source !== 'manual' && ['asset_type', 'ip', 'mac_address', 'ping_enabled']
+    .some(field => body[field] !== undefined)) {
+    return res.status(400).json({ error: 'Agent 管理的字段不能手工修改' });
+  }
+  if (body.hostname !== undefined) {
+    const hostname = cleanText(body.hostname);
+    if (hostname) {
+      const duplicate = db.prepare('SELECT id FROM assets WHERE hostname=? AND id<>?')
+        .get(hostname, req.params.id);
+      if (duplicate) return res.status(409).json({ error: '资产名称已存在' });
+    }
+  }
+  const textFields = [
+    'hostname', 'manufacturer', 'model', 'serial_number', 'mac_address',
+    'location', 'department', 'owner', 'asset_tag', 'notes'
+  ];
+  const updates = [];
+  const values = [];
+
+  for (const field of textFields) {
+    if (body[field] !== undefined) {
+      const value = cleanText(body[field]);
+      if (field === 'hostname' && !value) return res.status(400).json({ error: '资产名称不能为空' });
+      updates.push(`${field}=?`);
+      values.push(value);
+    }
+  }
+  if (body.asset_type !== undefined) {
+    const assetType = cleanText(body.asset_type);
+    if (!ASSET_TYPES.has(assetType)) return res.status(400).json({ error: '资产类型不受支持' });
+    if (assetType === 'computer') {
+      return res.status(400).json({ error: '电脑类资产请通过 Agent 自动上报' });
+    }
+    updates.push('asset_type=?');
+    values.push(assetType);
+  }
+  if (body.ip !== undefined) {
+    try {
+      updates.push('ip=?', "ping_status='unknown'", 'last_ping_at=NULL', 'ping_latency_ms=NULL');
+      values.push(normalizeIp(body.ip));
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+  if (body.ping_enabled !== undefined) {
+    updates.push('ping_enabled=?');
+    values.push(body.ping_enabled ? 1 : 0);
+  }
+  if (updates.length) {
+    values.push(req.params.id);
+    try {
+      db.prepare(`UPDATE assets SET ${updates.join(',')} WHERE id=?`).run(...values);
+    } catch (error) {
+      if (String(error.message).includes('UNIQUE')) return res.status(409).json({ error: '资产名称已存在' });
+      throw error;
+    }
+  }
+  res.json(assetResponse(db.prepare('SELECT * FROM assets WHERE id=?').get(req.params.id)));
+});
+
+app.post('/api/assets/:id/ping', requireAuth, async (req, res) => {
+  const asset = db.prepare('SELECT * FROM assets WHERE id=?').get(req.params.id);
+  if (!asset) return res.status(404).json({ error: 'asset not found' });
+  if (asset.source !== 'manual') {
+    return res.status(400).json({ error: 'Agent 资产使用上报时间判断在线状态' });
+  }
+  try {
+    res.json(await checkAssetPing(asset));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 app.delete('/api/assets/:id', requireAuth, (req, res) => {
@@ -180,14 +404,19 @@ app.get('/api/assets/:id/vnc', requireAuth, (req, res) => {
 });
 
 // ── QR Code ───────────────────────────────────────────────────────────────────
-app.get('/api/assets/:id/qr', requireAuth, async (req, res) => {
+app.get('/api/assets/:id/qr', async (req, res) => {
   const a = db.prepare('SELECT id,hostname FROM assets WHERE id=?').get(req.params.id);
   if (!a) return res.status(404).json({ error: 'not found' });
   const requestBaseUrl = `${req.protocol}://${req.get('host') || `localhost:${PORT}`}`;
-  const url = `${PUBLIC_BASE_URL || requestBaseUrl}/scan?id=${a.id}`;
-  const png = await QRCode.toBuffer(url, { width: 300, margin: 2 });
-  res.set('Content-Type', 'image/png');
-  res.send(png);
+  const url = `${PUBLIC_BASE_URL || requestBaseUrl}/asset?id=${encodeURIComponent(a.id)}`;
+  try {
+    const png = await QRCode.toBuffer(url, { width: 300, margin: 2, errorCorrectionLevel: 'M' });
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'no-store');
+    res.send(png);
+  } catch {
+    res.status(500).json({ error: 'QR generation failed' });
+  }
 });
 
 // ── Inventory Sessions ────────────────────────────────────────────────────────
@@ -232,7 +461,7 @@ app.delete('/api/inventory/:id', requireAuth, (req, res) => {
 app.get('/api/inventory/:id/records', requireAuth, (req, res) => {
   const rows = db.prepare(`
     SELECT r.*, a.hostname, a.ip, a.platform, a.location as asset_location,
-           a.department, a.asset_tag
+           a.department, a.owner, a.asset_type, a.asset_tag
     FROM inventory_records r
     JOIN assets a ON a.id = r.asset_id
     WHERE r.session_id=? ORDER BY r.scanned_at DESC
@@ -287,8 +516,10 @@ function toCSV(rows, cols) {
 // All assets report
 app.get('/api/reports/assets.csv', requireAuth, (req, res) => {
   const rows = db.prepare('SELECT * FROM assets ORDER BY hostname').all();
-  const cols = ['hostname','platform','ip','mac_address','cpu','cpu_cores',
-    'ram_total','disk_total','os','os_version','location','department','asset_tag','last_seen','created_at'];
+  const cols = ['hostname','asset_type','source','manufacturer','model','serial_number',
+    'platform','ip','mac_address','cpu','cpu_cores','ram_total','disk_total','os','os_version',
+    'location','department','owner','asset_tag','ping_enabled','ping_status','last_ping_at',
+    'ping_latency_ms','last_seen','created_at'];
   res.set('Content-Type','text/csv; charset=utf-8');
   res.set('Content-Disposition','attachment; filename="assets.csv"');
   res.set('Cache-Control','no-store');
@@ -300,7 +531,7 @@ app.get('/api/reports/inventory/:id.csv', requireAuth, (req, res) => {
   const session = db.prepare('SELECT * FROM inventory_sessions WHERE id=?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'not found' });
   const rows = db.prepare(`
-    SELECT a.hostname, a.asset_tag, a.department, a.ip, a.platform, a.os,
+    SELECT a.hostname, a.asset_type, a.asset_tag, a.department, a.owner, a.ip, a.platform, a.os,
            r.scanned_location, r.note, r.scanned_by, r.scanned_at,
            a.location as registered_location
     FROM inventory_records r JOIN assets a ON a.id=r.asset_id
@@ -309,14 +540,14 @@ app.get('/api/reports/inventory/:id.csv', requireAuth, (req, res) => {
 
   // Append un-scanned assets
   const scannedIds = new Set(rows.map(r => r.hostname));
-  const all = db.prepare('SELECT hostname,asset_tag,department,ip,platform,os,location FROM assets').all();
+  const all = db.prepare('SELECT hostname,asset_type,asset_tag,department,owner,ip,platform,os,location FROM assets').all();
   for (const a of all) {
     if (!scannedIds.has(a.hostname)) {
       rows.push({ ...a, registered_location: a.location,
         scanned_location:'', note:'未盘点', scanned_by:'', scanned_at:'' });
     }
   }
-  const cols = ['hostname','asset_tag','department','ip','platform','os',
+  const cols = ['hostname','asset_type','asset_tag','department','owner','ip','platform','os',
     'registered_location','scanned_location','note','scanned_by','scanned_at'];
   res.set('Content-Type','text/csv; charset=utf-8');
   res.set('Cache-Control','no-store');
@@ -334,7 +565,43 @@ app.get('/api/inventory/:id/stats', requireAuth, (req, res) => {
   res.json({ total, scanned, missing: total - scanned, session });
 });
 
+app.get('/api/public/inventory/:id', (req, res) => {
+  const session = db.prepare('SELECT id,name,status FROM inventory_sessions WHERE id=?').get(req.params.id);
+  if (!session) return res.status(404).json({ error: '盘点场次不存在' });
+  const assets = db.prepare(`
+    SELECT id,hostname,asset_type,ip,location,department,owner,asset_tag
+    FROM assets ORDER BY hostname
+  `).all();
+  const scanned = db.prepare('SELECT COUNT(*) as c FROM inventory_records WHERE session_id=?')
+    .get(req.params.id).c;
+  res.json({ session, assets, stats: {
+    total: assets.length,
+    scanned,
+    missing: assets.length - scanned
+  } });
+});
+
+let pingSweepRunning = false;
+async function runPingSweep() {
+  if (pingSweepRunning) return;
+  pingSweepRunning = true;
+  try {
+    const assets = db.prepare(`
+      SELECT * FROM assets
+      WHERE source='manual' AND ping_enabled=1 AND ip IS NOT NULL AND ip<>''
+      ORDER BY hostname
+    `).all();
+    for (const asset of assets) {
+      try { await checkAssetPing(asset); }
+      catch (error) { console.warn(`Ping skipped for ${asset.hostname}: ${error.message}`); }
+    }
+  } finally {
+    pingSweepRunning = false;
+  }
+}
+
 // SPA fallback
+app.get('/asset', (req, res) => res.sendFile(path.join(__dirname, '../frontend/qr.html')));
 app.get('/scan', (req, res) => res.sendFile(path.join(__dirname, '../frontend/scan.html')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../frontend/index.html')));
 
@@ -342,10 +609,18 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`IT Asset Server listening on http://0.0.0.0:${PORT}`);
   console.log(`Admin user: ${ADMIN_USER}`);
   console.log(`Database: ${DB_PATH}`);
+  console.log(`Ping interval: ${PING_INTERVAL_SECONDS}s`);
 });
+
+const initialPingTimer = setTimeout(() => runPingSweep().catch(console.error), 1500);
+initialPingTimer.unref();
+const pingTimer = setInterval(() => runPingSweep().catch(console.error), PING_INTERVAL_SECONDS * 1000);
+pingTimer.unref();
 
 function shutdown(signal) {
   console.log(`${signal} received, shutting down`);
+  clearTimeout(initialPingTimer);
+  clearInterval(pingTimer);
   server.close(() => {
     db.close();
     process.exit(0);
