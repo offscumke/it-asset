@@ -76,6 +76,7 @@ header .spacer{flex:1}
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface);scrollbar-color:var(--border-strong) transparent}
 table{width:100%;border-collapse:collapse;background:var(--surface)}
 .table-wrap table{border:0;min-width:1080px}
+.table-wrap .asset-list{min-width:1320px}
 thead tr{background:#0d151c}
 th{padding:12px 14px;text-align:left;font-size:10px;color:var(--subtle);text-transform:uppercase;font-weight:800;border-bottom:1px solid var(--border);white-space:nowrap}
 td{padding:13px 14px;font-size:13px;border-bottom:1px solid #1b2833;vertical-align:middle}
@@ -83,6 +84,16 @@ tr:last-child td{border-bottom:none}
 tbody tr{transition:background .15s}tbody tr:hover{background:#141f28}
 .asset-name{font-size:13px;font-weight:720;color:var(--text)}
 .asset-meta{font-size:11px;color:var(--subtle);margin-top:4px}
+.hardware-summary{display:grid;grid-template-columns:repeat(3,minmax(82px,1fr));gap:6px;min-width:270px}
+.hardware-item{display:flex;align-items:center;gap:6px;min-width:0;padding:6px 7px;background:#0b131a;border:1px solid var(--border);border-radius:6px}
+.hardware-icon{width:25px;height:25px;display:grid;place-items:center;border-radius:5px;font-size:8px;font-weight:850;flex:0 0 auto}
+.hardware-cpu .hardware-icon{background:var(--blue-soft);color:var(--blue)}
+.hardware-memory .hardware-icon{background:var(--teal-soft);color:var(--teal)}
+.hardware-disk .hardware-icon{background:var(--amber-soft);color:var(--amber)}
+.hardware-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hardware-label{font-size:9px;color:var(--subtle);font-weight:800;line-height:1}
+.hardware-number{font-size:11px;color:var(--text);font-weight:760;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hardware-sub{font-size:9px;color:var(--muted);white-space:nowrap}
 .type-line{display:flex;align-items:center;gap:8px}
 .type-glyph{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--violet-soft);color:var(--violet);flex:0 0 auto}
 .type-computer{background:var(--blue-soft);color:var(--blue)}
@@ -108,6 +119,9 @@ tbody tr{transition:background .15s}tbody tr:hover{background:#141f28}
 .btn-edit{background:var(--blue-soft);color:var(--blue);border-color:#23578b}
 .btn-qr{background:var(--violet-soft);color:var(--violet);border-color:#58418d}
 .btn-vnc{background:var(--orange-soft);color:var(--orange);border-color:#7b421c}
+.vnc-glyph{width:16px;height:12px;display:inline-block;border:2px solid currentColor;border-radius:2px;position:relative}
+.vnc-glyph::before{content:'';position:absolute;left:5px;bottom:-5px;width:3px;height:3px;border-left:2px solid currentColor;border-right:2px solid currentColor}
+.vnc-glyph::after{content:'';position:absolute;left:3px;right:3px;bottom:-7px;border-bottom:2px solid currentColor}
 .btn-del{background:transparent;color:var(--red);border-color:#5f2530}
 .btn-refresh{background:var(--surface-2);color:var(--muted);border-color:var(--border)}
 .btn-primary{background:var(--teal);color:#06201d;padding:0 16px}
@@ -226,10 +240,10 @@ tbody tr{transition:background .15s}tbody tr:hover{background:#141f28}
           <button class="btn-export" onclick="exportAssets()"><span class="export-icon">⇩</span><span class="export-label">导出 CSV</span></button>
         </div>
       </div>
-      <div class="table-wrap"><table>
+      <div class="table-wrap"><table class="asset-list">
         <thead><tr>
           <th>状态</th><th>资产</th><th>类型/来源</th><th>IP</th>
-          <th>部门/责任人</th><th>位置</th><th>最后检测</th><th>操作</th>
+          <th>硬件配置</th><th>部门/责任人</th><th>位置</th><th>最后检测</th><th>操作</th>
         </tr></thead>
         <tbody id="asset-table"></tbody>
       </table></div>
@@ -327,11 +341,33 @@ const ASSET_TYPES = {
 };
 function esc(value){ return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function isOnline(a){ return a?.online_status==='online'; }
-function fmtBytes(b){ if(!b)return '—'; return b>1e9?(b/1e9).toFixed(1)+' GB':(b/1e6).toFixed(0)+' MB'; }
+function fmtBytes(b){
+  const bytes=Number(b);
+  if(!Number.isFinite(bytes)||bytes<=0)return '—';
+  if(bytes>=1e12)return (bytes/1e12).toFixed(1)+' TB';
+  if(bytes>=1e9)return (bytes/1e9).toFixed(1)+' GB';
+  return (bytes/1e6).toFixed(0)+' MB';
+}
 function fmtDate(d){ return d?new Date(d+'Z').toLocaleString('zh-CN'):'—'; }
 function pct(u,t){ return t?Math.round(u/t*100):0; }
 function bar(p){ const c=p>90?'danger':p>70?'warn':''; return `<div class="progress"><div class="progress-bar ${c}" style="width:${p}%"></div></div>`; }
 function typeMeta(type){ return ASSET_TYPES[type]||ASSET_TYPES.other; }
+function hardwareSummary(a){
+  if(a.source!=='agent')return '<span class="asset-meta">手工资产无采集数据</span>';
+  const cpu=esc(a.cpu)||'未知 CPU';
+  const cores=a.cpu_cores?`${esc(a.cpu_cores)} 核`:'核心数未知';
+  return `<div class="hardware-summary" aria-label="CPU、内存、硬盘">
+    <div class="hardware-item hardware-cpu" title="CPU：${cpu}，${cores}">
+      <span class="hardware-icon">CPU</span><span class="hardware-copy"><span class="hardware-label">处理器</span><strong class="hardware-number">${cpu}</strong><span class="hardware-sub">${cores}</span></span>
+    </div>
+    <div class="hardware-item hardware-memory" title="内存：${fmtBytes(a.ram_total)}">
+      <span class="hardware-icon">RAM</span><span class="hardware-copy"><span class="hardware-label">内存</span><strong class="hardware-number">${fmtBytes(a.ram_total)}</strong><span class="hardware-sub">总容量</span></span>
+    </div>
+    <div class="hardware-item hardware-disk" title="硬盘：${fmtBytes(a.disk_total)}">
+      <span class="hardware-icon">DISK</span><span class="hardware-copy"><span class="hardware-label">硬盘</span><strong class="hardware-number">${fmtBytes(a.disk_total)}</strong><span class="hardware-sub">总容量</span></span>
+    </div>
+  </div>`;
+}
 function typeOptions(selected='', includeComputer=true){
   return Object.entries(ASSET_TYPES).filter(([value])=>includeComputer||value!=='computer').map(([value,[label]]) =>
     `<option value="${value}" ${value===selected?'selected':''}>${label}</option>`).join('');
@@ -375,7 +411,7 @@ function renderAssets(assets) {
   document.getElementById('s-agent').textContent=allAssets.filter(a=>a.source==='agent').length;
   document.getElementById('s-manual').textContent=allAssets.filter(a=>a.source==='manual').length;
   if (!assets.length) {
-    document.getElementById('asset-table').innerHTML='<tr><td colspan="8" class="empty">暂无匹配资产</td></tr>'; return;
+    document.getElementById('asset-table').innerHTML='<tr><td colspan="9" class="empty">暂无匹配资产</td></tr>'; return;
   }
   document.getElementById('asset-table').innerHTML = assets.map(a=>{
     const [typeLabel,typeIcon]=typeMeta(a.asset_type);
@@ -385,7 +421,7 @@ function renderAssets(assets) {
     const source=a.source==='manual'?
       '<span class="badge manual">手工</span>':'<span class="badge agent">Agent</span>';
     const vnc=a.source==='agent'&&a.ip?
-      `<button class="btn btn-icon btn-vnc" onclick="launchVNC('${esc(a.ip)}',${a.vnc_port||5900})" title="VNC 连接" aria-label="VNC 连接">↗</button>`:'';
+      `<button class="btn btn-icon btn-vnc" onclick="launchVNC('${esc(a.ip)}',${a.vnc_port||5900})" title="VNC 连接" aria-label="VNC 连接"><span class="vnc-glyph" aria-hidden="true"></span></button>`:'';
     const ping=a.source==='manual'&&a.ip?
       `<button class="btn btn-icon btn-refresh" onclick="pingAsset('${a.id}')" title="立即 Ping" aria-label="立即 Ping">⌁</button>`:'';
     return `<tr>
@@ -393,6 +429,7 @@ function renderAssets(assets) {
       <td><div class="asset-name">${esc(a.hostname)||'—'}</div><div class="asset-meta">${esc(a.asset_tag)||'无资产标签'}</div></td>
       <td><div class="type-line"><span class="type-glyph type-${esc(a.asset_type)}">${typeIcon}</span><div><div>${typeLabel}</div><div style="margin-top:4px">${source}</div></div></div></td>
       <td style="font-family:monospace;font-size:12px">${esc(a.ip)||'—'}</td>
+      <td>${hardwareSummary(a)}</td>
       <td><div>${esc(a.department)||'未分配部门'}</div><div class="asset-meta">${esc(a.owner)||'未分配责任人'}</div></td>
       <td>${esc(a.location)||'<span style="color:var(--subtle)">未设置</span>'}</td>
       <td style="font-size:11px;color:var(--muted);white-space:nowrap">${fmtDate(checkedAt)}

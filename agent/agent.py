@@ -22,11 +22,20 @@ def get_mac():
         return ""
 
 def get_cpu_info():
+    cpu = platform.processor() or platform.machine() or "Unknown"
+    if sys.platform == "darwin":
+        try:
+            result = subprocess.run(
+                ['/usr/sbin/sysctl', '-n', 'machdep.cpu.brand_string'],
+                capture_output=True, text=True, timeout=5)
+            cpu = result.stdout.strip() or cpu
+        except Exception:
+            pass
     try:
         import psutil
-        return {"cpu": platform.processor() or "Unknown", "cpu_cores": psutil.cpu_count(logical=True)}
+        return {"cpu": cpu, "cpu_cores": psutil.cpu_count(logical=True)}
     except ImportError:
-        return {"cpu": platform.processor() or "Unknown", "cpu_cores": os.cpu_count() or 1}
+        return {"cpu": cpu, "cpu_cores": os.cpu_count() or 1}
 
 def get_memory():
     try:

@@ -110,7 +110,21 @@ python3 agent/agent.py \
   --agent-secret YOUR_AGENT_SECRET
 ```
 
-macOS 安装脚本：
+macOS 安装包（当前在 Apple Silicon macOS 上生成 arm64 包）：
+
+```bash
+bash agent-deploy/macos/build_pkg.sh
+```
+
+不要打开 `agent/build/it-asset-agent/it-asset-agent.pkg`：那是 PyInstaller 的内部归档，不是 macOS Installer。生成的真正安装包在 `agent/dist/it-asset-agent-macos-arm64.pkg`，双击它安装后，再运行：
+
+```bash
+sudo /usr/local/it-asset-agent/configure.sh \
+  --server https://assets.example.com \
+  --secret YOUR_AGENT_SECRET
+```
+
+也可以直接使用源码目录中的安装脚本：
 
 ```bash
 sudo bash agent-deploy/macos/install.sh \
