@@ -163,7 +163,8 @@ const assetColumns = {
   serial_number: 'TEXT',
   notes: 'TEXT',
   lifecycle_status: "TEXT DEFAULT 'in_use'",
-  lifecycle_updated_at: 'TEXT DEFAULT (datetime(\'now\'))',
+  // SQLite only permits constant defaults when adding a column to an existing table.
+  lifecycle_updated_at: 'TEXT',
   ping_enabled: 'INTEGER DEFAULT 0',
   ping_status: "TEXT DEFAULT 'unknown'",
   last_ping_at: 'TEXT',
