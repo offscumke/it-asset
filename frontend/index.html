@@ -108,12 +108,19 @@ tbody tr{transition:background .15s}tbody tr:hover{background:#141f28}
 .badge.unknown{background:#1c2730;color:var(--muted);border-color:var(--border-strong)}
 .badge.manual{background:var(--amber-soft);color:var(--amber);border-color:#70530c}
 .badge.agent{background:var(--blue-soft);color:var(--blue);border-color:#23578b}
+.badge.in_use{background:var(--teal-soft);color:var(--teal);border-color:#17675d}
+.badge.spare{background:var(--violet-soft);color:var(--violet);border-color:#58418d}
+.badge.repair{background:var(--amber-soft);color:var(--amber);border-color:#70530c}
+.badge.loaned{background:var(--blue-soft);color:var(--blue);border-color:#23578b}
+.badge.retired{background:#1c2730;color:var(--muted);border-color:var(--border-strong)}
+.badge.lost{background:var(--red-soft);color:var(--red);border-color:#722635}
 .badge.open,.badge.done{background:var(--green-soft);color:var(--green)}
 .badge.closed{background:#1c2730;color:var(--muted)}
 .badge.miss{background:var(--orange-soft);color:var(--orange)}
 .badge.win{background:var(--blue-soft);color:var(--blue)}.badge.mac{background:var(--violet-soft);color:var(--violet)}
 .btn,.btn-primary,.btn-export{height:34px;cursor:pointer;border:1px solid transparent;border-radius:8px;padding:0 12px;font-size:12px;font-weight:720;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;transition:filter .15s,background .15s,border-color .15s,transform .15s}
 .btn:hover,.btn-primary:hover,.btn-export:hover{filter:brightness(1.1)}.btn:active,.btn-primary:active,.btn-export:active{transform:translateY(1px)}
+.btn:disabled,.btn-primary:disabled,.btn-export:disabled{cursor:not-allowed;opacity:.45;filter:none;transform:none}
 .btn-icon{width:34px;padding:0;font-size:16px}
 .btn-detail{background:var(--teal-soft);color:var(--teal);border-color:#17675d}
 .btn-edit{background:var(--blue-soft);color:var(--blue);border-color:#23578b}
@@ -126,6 +133,7 @@ tbody tr{transition:background .15s}tbody tr:hover{background:#141f28}
 .btn-refresh{background:var(--surface-2);color:var(--muted);border-color:var(--border)}
 .btn-primary{background:var(--teal);color:#06201d;padding:0 16px}
 .btn-manual{background:var(--amber);color:#241800}
+.btn-bulk{background:var(--blue-soft);color:var(--blue);border-color:#23578b}
 .btn-inventory{background:var(--orange);color:#251104}
 .btn-export{background:transparent;color:var(--green);border-color:#176047;padding:0 14px}
 .action-group{display:flex;align-items:center;gap:6px}
@@ -136,9 +144,18 @@ tbody tr{transition:background .15s}tbody tr:hover{background:#141f28}
 .modal-bg{position:fixed;inset:0;background:rgba(2,6,10,.76);display:none;align-items:center;justify-content:center;padding:20px;z-index:100}
 .modal-bg.open{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:0;width:min(680px,100%);max-height:86vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal.modal-wide{width:min(980px,100%)}
 .modal h2{font-size:15px;font-weight:750;padding:18px 20px;margin-bottom:0;color:var(--text);display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:2}
 .modal .close{margin-left:auto;width:32px;height:32px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:18px;cursor:pointer}
 #modal-icon{color:var(--teal)}#modal-body{padding:20px}
+.import-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.import-file{height:36px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border-radius:8px;background:var(--blue);color:#061525;font-size:12px;font-weight:760;cursor:pointer}
+.import-file input{display:none}
+.import-empty{min-height:150px;border:1px dashed var(--border-strong);border-radius:8px;display:grid;place-items:center;color:var(--subtle);font-size:13px;text-align:center;padding:24px}
+.import-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;color:var(--muted);font-size:12px}
+.import-preview{border:1px solid var(--border);border-radius:8px;overflow:auto;max-height:360px}
+.import-preview table{min-width:760px}.import-preview th{position:sticky;top:0;z-index:1}.import-preview td{font-size:12px}
+.import-error{color:var(--red);font-size:12px;margin-top:12px;line-height:1.7}
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .info-item{min-width:0}.info-item .key,.info-item>label{font-size:10px;color:var(--subtle);text-transform:uppercase;font-weight:800}
 .info-item .val{font-size:13px;margin-top:5px;color:var(--text);font-weight:600;word-break:break-word}
@@ -181,7 +198,7 @@ tbody tr{transition:background .15s}tbody tr:hover{background:#141f28}
 @media(max-width:420px){
   .page-heading h2{font-size:20px}.page-state{display:none}
   .stat-card{gap:10px}.stat-icon{display:none}
-  .toolbar-actions{display:grid;grid-template-columns:1fr auto auto}
+  .toolbar-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto}
   .toolbar-actions .btn-export{width:38px;padding:0}.toolbar-actions .btn-export .export-label{display:none}.toolbar-actions .btn-export .export-icon{font-size:17px}
 }
 </style>
@@ -231,11 +248,13 @@ tbody tr{transition:background .15s}tbody tr:hover{background:#141f28}
         <div class="toolbar-search"><span>⌕</span><input id="search" placeholder="搜索名称、IP、标签、部门或责任人" oninput="filterAssets()"></div>
         <div class="toolbar-filters">
           <select id="filter-type" onchange="filterAssets()"><option value="">全部类型</option></select>
+          <select id="filter-lifecycle" onchange="filterAssets()"><option value="">全部状态</option></select>
           <select id="filter-dept" onchange="filterAssets()"><option value="">全部部门</option></select>
           <select id="filter-owner" onchange="filterAssets()"><option value="">全部责任人</option></select>
         </div>
         <div class="toolbar-actions">
           <button class="btn-primary btn-manual" onclick="addAsset()">＋ 手工录入</button>
+          <button class="btn btn-bulk" onclick="openBulkImport()">⇧ 批量录入</button>
           <button class="btn btn-icon btn-refresh" onclick="loadAssets()" title="刷新资产" aria-label="刷新资产">↻</button>
           <button class="btn-export" onclick="exportAssets()"><span class="export-icon">⇩</span><span class="export-label">导出 CSV</span></button>
         </div>
@@ -282,6 +301,7 @@ let token = localStorage.getItem('it_token') || '';
 let allAssets = [];
 let currentInventory = null;
 let toastTimer = null;
+let bulkAssets = [];
 
 function showToast(message, error=false) {
   const toast = document.getElementById('toast');
@@ -316,6 +336,7 @@ function logout() {
   document.getElementById('app').style.display='none';
   document.getElementById('login-page').style.display='flex';
   document.getElementById('l-pass').value='';
+  document.getElementById('modal').classList.remove('open');
 }
 
 async function apiFetch(path, opts={}) {
@@ -339,6 +360,20 @@ const ASSET_TYPES = {
   firewall:['防火墙','FW'], router:['路由器','RT'], wireless_ap:['无线 AP','AP'],
   printer:['打印机','PR'], storage:['存储','ST'], other:['其他','OT']
 };
+const LIFECYCLE_TYPES = {
+  in_use:['在用','IN'], spare:['备用','SP'], repair:['维修','RE'],
+  loaned:['借出','LO'], retired:['已报废','RT'], lost:['丢失','LS']
+};
+const EVENT_LABELS = {
+  agent_create:'Agent 首次上报',
+  agent_rename:'Agent 主机名变更',
+  manual_create:'手工录入',
+  manual_update:'手工更新',
+  asset_update:'资产更新',
+  bulk_create:'批量导入',
+  bulk_update:'批量更新',
+  inventory_scan:'盘点记录'
+};
 function esc(value){ return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function isOnline(a){ return a?.online_status==='online'; }
 function fmtBytes(b){
@@ -352,6 +387,13 @@ function fmtDate(d){ return d?new Date(d+'Z').toLocaleString('zh-CN'):'—'; }
 function pct(u,t){ return t?Math.round(u/t*100):0; }
 function bar(p){ const c=p>90?'danger':p>70?'warn':''; return `<div class="progress"><div class="progress-bar ${c}" style="width:${p}%"></div></div>`; }
 function typeMeta(type){ return ASSET_TYPES[type]||ASSET_TYPES.other; }
+function lifecycleMeta(status){ return LIFECYCLE_TYPES[status]||LIFECYCLE_TYPES.in_use; }
+function lifecycleOptions(selected=''){
+  return Object.entries(LIFECYCLE_TYPES).map(([value,[label]]) =>
+    `<option value="${value}" ${value===selected?'selected':''}>${label}</option>`).join('');
+}
+function lifecycleLabel(status){ return lifecycleMeta(status)[0]; }
+function eventActionLabel(action){ return EVENT_LABELS[action] || action; }
 function hardwareSummary(a){
   if(a.source!=='agent')return '<span class="asset-meta">手工资产无采集数据</span>';
   const cpu=esc(a.cpu)||'未知 CPU';
@@ -381,26 +423,31 @@ async function loadAssets() {
 
 function refreshAssetFilters() {
   const typeSelect=document.getElementById('filter-type');
+  const lifecycleSelect=document.getElementById('filter-lifecycle');
   const deptSelect=document.getElementById('filter-dept');
   const ownerSelect=document.getElementById('filter-owner');
-  const values={type:typeSelect.value,dept:deptSelect.value,owner:ownerSelect.value};
+  const values={type:typeSelect.value,lifecycle:lifecycleSelect.value,dept:deptSelect.value,owner:ownerSelect.value};
   typeSelect.innerHTML='<option value="">全部类型</option>'+typeOptions();
+  lifecycleSelect.innerHTML='<option value="">全部状态</option>'+lifecycleOptions();
   const optionList=(items,empty)=>'<option value="">'+empty+'</option>'+
     [...new Set(items.filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
   deptSelect.innerHTML=optionList(allAssets.map(a=>a.department),'全部部门');
   ownerSelect.innerHTML=optionList(allAssets.map(a=>a.owner),'全部责任人');
-  typeSelect.value=values.type; deptSelect.value=values.dept; ownerSelect.value=values.owner;
+  typeSelect.value=values.type; lifecycleSelect.value=values.lifecycle;
+  deptSelect.value=values.dept; ownerSelect.value=values.owner;
 }
 
 function filterAssets() {
   const q=document.getElementById('search').value.trim().toLowerCase();
   const type=document.getElementById('filter-type').value;
+  const lifecycle=document.getElementById('filter-lifecycle').value;
   const dept=document.getElementById('filter-dept').value;
   const owner=document.getElementById('filter-owner').value;
   renderAssets(allAssets.filter(a=>{
     const text=[a.hostname,a.ip,a.asset_tag,a.department,a.owner,a.location,a.manufacturer,a.model]
-      .filter(Boolean).join(' ').toLowerCase();
+      .concat(lifecycleLabel(a.lifecycle_status)).filter(Boolean).join(' ').toLowerCase();
     return (!q||text.includes(q))&&(!type||a.asset_type===type)&&
+      (!lifecycle||a.lifecycle_status===lifecycle)&&
       (!dept||a.department===dept)&&(!owner||a.owner===owner);
   }));
 }
@@ -415,11 +462,14 @@ function renderAssets(assets) {
   }
   document.getElementById('asset-table').innerHTML = assets.map(a=>{
     const [typeLabel,typeIcon]=typeMeta(a.asset_type);
+    const lifecycleStatus = a.lifecycle_status || 'in_use';
+    const [lifecycleText] = lifecycleMeta(lifecycleStatus);
     const status=a.online_status||'unknown';
     const statusLabel=status==='online'?'● 在线':status==='offline'?'○ 离线':'— 未检测';
     const checkedAt=a.source==='manual'?a.last_ping_at:a.last_seen;
     const source=a.source==='manual'?
       '<span class="badge manual">手工</span>':'<span class="badge agent">Agent</span>';
+    const lifecycleBadge=`<span class="badge ${lifecycleStatus}">${lifecycleText}</span>`;
     const vnc=a.source==='agent'&&a.ip?
       `<button class="btn btn-icon btn-vnc" onclick="launchVNC('${esc(a.ip)}',${a.vnc_port||5900})" title="VNC 连接" aria-label="VNC 连接"><span class="vnc-glyph" aria-hidden="true"></span></button>`:'';
     const ping=a.source==='manual'&&a.ip?
@@ -427,7 +477,7 @@ function renderAssets(assets) {
     return `<tr>
       <td><span class="badge ${status}">${statusLabel}</span></td>
       <td><div class="asset-name">${esc(a.hostname)||'—'}</div><div class="asset-meta">${esc(a.asset_tag)||'无资产标签'}</div></td>
-      <td><div class="type-line"><span class="type-glyph type-${esc(a.asset_type)}">${typeIcon}</span><div><div>${typeLabel}</div><div style="margin-top:4px">${source}</div></div></div></td>
+      <td><div class="type-line"><span class="type-glyph type-${esc(a.asset_type)}">${typeIcon}</span><div><div>${typeLabel}</div><div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap">${source}${lifecycleBadge}</div></div></div></td>
       <td style="font-family:monospace;font-size:12px">${esc(a.ip)||'—'}</td>
       <td>${hardwareSummary(a)}</td>
       <td><div>${esc(a.department)||'未分配部门'}</div><div class="asset-meta">${esc(a.owner)||'未分配责任人'}</div></td>
@@ -448,6 +498,8 @@ async function showDetail(id) {
   const r = await apiFetch(`/api/assets/${id}`); if(!r) return;
   const a = await r.json();
   const [typeLabel,typeIcon]=typeMeta(a.asset_type);
+  const lifecycleStatus = a.lifecycle_status || 'in_use';
+  const [lifecycleText]=lifecycleMeta(lifecycleStatus);
   document.getElementById('modal-name').textContent=a.hostname;
   document.getElementById('modal-icon').textContent=typeIcon;
   const checkedAt=a.source==='manual'?a.last_ping_at:a.last_seen;
@@ -464,6 +516,8 @@ async function showDetail(id) {
       <input class="sw-search" placeholder="搜索软件…" oninput="filterSW(this)" data-sw="${encodeURIComponent(JSON.stringify(a.software))}">
       <div class="sw-scroll" id="sw-scroll">${a.software.map(s=>`<div class="sw-item"><span>${esc(s.name)}</span><span class="sw-ver">${esc(s.version)}</span></div>`).join('')}</div></div>`;
   }
+  const events=a.events&&a.events.length?`<div class="sw-list"><h3>最近变更 (${a.events.length})</h3>
+    <div class="sw-scroll">${a.events.map(ev=>`<div class="sw-item"><span><i class="record-dot done"></i>${esc(eventActionLabel(ev.action))}${ev.detail?` · ${esc(ev.detail)}`:''}</span><span class="sw-ver">${esc(ev.actor||'系统')} ${fmtDate(ev.created_at)}</span></div>`).join('')}</div></div>`:'';
   document.getElementById('modal-body').innerHTML=`<div class="info-grid">
     <div class="info-item"><div class="key">资产类型</div><div class="val">${typeLabel}</div></div>
     <div class="info-item"><div class="key">数据来源</div><div class="val">${a.source==='agent'?'Agent 自动采集':'手工录入'}</div></div>
@@ -473,10 +527,11 @@ async function showDetail(id) {
     <div class="info-item"><div class="key">部门 / 责任人</div><div class="val">${esc(a.department)||'—'} / ${esc(a.owner)||'—'}</div></div>
     <div class="info-item"><div class="key">位置</div><div class="val">${esc(a.location)||'未设置'}</div></div>
     <div class="info-item"><div class="key">资产标签</div><div class="val">${esc(a.asset_tag)||'—'}</div></div>
+    <div class="info-item"><div class="key">生命周期状态</div><div class="val">${lifecycleText}</div></div>
     <div class="info-item"><div class="key">状态</div><div class="val">${statusLabel}</div></div>
     <div class="info-item"><div class="key">最后检测</div><div class="val">${fmtDate(checkedAt)}</div></div>
     ${a.notes?`<div class="info-item full"><div class="key">备注</div><div class="val">${esc(a.notes)}</div></div>`:''}
-  </div>${technical}${a.source==='manual'&&a.ip?`<button class="btn-primary" style="margin-top:16px" onclick="pingAsset('${a.id}',true)">立即 Ping</button>`:''}${sw}`;
+  </div>${technical}${events}${a.source==='manual'&&a.ip?`<button class="btn-primary" style="margin-top:16px" onclick="pingAsset('${a.id}',true)">立即 Ping</button>`:''}${sw}`;
   document.getElementById('modal').classList.add('open');
 }
 
@@ -489,12 +544,14 @@ function showQR(id) {
   const asset=allAssets.find(a=>a.id===id);
   const imageUrl=`/api/assets/${encodeURIComponent(id)}/qr`;
   const detailUrl=`${location.origin}/asset?id=${encodeURIComponent(id)}`;
+  const lifecycleText = lifecycleLabel(asset?.lifecycle_status || 'in_use');
   document.getElementById('modal-name').textContent='资产二维码';
   document.getElementById('modal-icon').textContent='QR';
   document.getElementById('modal-body').innerHTML=`<div class="qr-box">
     <img src="${imageUrl}" alt="资产二维码">
     <p><strong>${esc(asset?.hostname)||'资产'}</strong></p>
-    <p>扫码可查看资产类型、归属、位置和在线状态</p>
+    <p>扫码可查看资产类型、归属、位置、生命周期和在线状态</p>
+    <p>生命周期：${lifecycleText}</p>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
       <button class="btn-primary" onclick="window.open('${detailUrl}','_blank')">打开详情</button>
       <button class="btn btn-refresh" style="padding:10px 18px" onclick="window.open('${imageUrl}','_blank')">打印二维码</button>
@@ -503,8 +560,147 @@ function showQR(id) {
   document.getElementById('modal').classList.add('open');
 }
 
+// ── Bulk Import ──────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+  const source = String(text || '').replace(/^\uFEFF/, '');
 
-// ── Add/Edit Asset Modals ─────────────────────────────────────────────────────────────
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (quoted) {
+      if (char === '"' && source[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        field += char;
+      }
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === ',') {
+      row.push(field);
+      field = '';
+    } else if (char === '\n') {
+      row.push(field);
+      if (row.some(value => value.trim())) rows.push(row);
+      row = [];
+      field = '';
+    } else if (char !== '\r') {
+      field += char;
+    }
+  }
+  if (quoted) throw new Error('CSV 中存在未闭合的引号');
+  row.push(field);
+  if (row.some(value => value.trim())) rows.push(row);
+  return rows;
+}
+
+function openBulkImport() {
+  bulkAssets = [];
+  document.querySelector('#modal .modal').classList.add('modal-wide');
+  document.getElementById('modal-name').textContent = '批量录入资产';
+  document.getElementById('modal-icon').textContent = 'CSV';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="import-actions">
+      <label class="import-file">选择 CSV<input type="file" accept=".csv,text/csv" onchange="handleBulkFile(this)"></label>
+      <button class="btn btn-export" onclick="downloadBulkTemplate()">⇩ 下载模板</button>
+    </div>
+    <div id="bulk-content" class="import-empty">尚未选择文件</div>
+    <div id="bulk-result" class="import-error"></div>`;
+  document.getElementById('modal').classList.add('open');
+}
+
+async function handleBulkFile(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const content = document.getElementById('bulk-content');
+  const result = document.getElementById('bulk-result');
+  result.textContent = '';
+  try {
+    const rows = parseCSV(await file.text());
+    if (rows.length < 2) throw new Error('CSV 没有资产数据');
+    const headers = rows[0].map(value => value.trim());
+    const required = ['hostname', 'asset_type'];
+    const missing = required.filter(name => !headers.includes(name));
+    if (missing.length) throw new Error(`缺少字段：${missing.join(', ')}`);
+    bulkAssets = rows.slice(1).map(row => Object.fromEntries(
+      headers.map((header, index) => [header, (row[index] || '').trim()])
+    ));
+    if (!bulkAssets.length) throw new Error('CSV 没有资产数据');
+    if (bulkAssets.length > 500) throw new Error('单次最多导入 500 条资产');
+    renderBulkPreview(file.name);
+  } catch (error) {
+    bulkAssets = [];
+    content.className = 'import-empty';
+    content.textContent = error.message || 'CSV 解析失败';
+  }
+}
+
+function renderBulkPreview(filename) {
+  const invalidRows = bulkAssets.filter(asset =>
+    !asset.hostname || !ASSET_TYPES[asset.asset_type] || asset.asset_type === 'computer');
+  const preview = bulkAssets.slice(0, 20);
+  document.getElementById('bulk-content').className = '';
+  document.getElementById('bulk-content').innerHTML = `
+    <div class="import-summary"><span>${esc(filename)} · ${bulkAssets.length} 条</span>
+      <span>${invalidRows.length ? `${invalidRows.length} 条需修正` : '格式检查通过'}</span></div>
+    <div class="import-preview"><table><thead><tr>
+      <th>资产名称</th><th>类型</th><th>IP</th><th>部门</th><th>责任人</th><th>位置</th>
+    </tr></thead><tbody>${preview.map(asset => {
+      const valid = asset.hostname && ASSET_TYPES[asset.asset_type] && asset.asset_type !== 'computer';
+      return `<tr><td>${esc(asset.hostname) || '<span class="import-error">缺少名称</span>'}</td>
+        <td>${valid ? esc(typeMeta(asset.asset_type)[0]) : '<span class="import-error">类型无效</span>'}</td>
+        <td>${esc(asset.ip) || '—'}</td><td>${esc(asset.department) || '—'}</td>
+        <td>${esc(asset.owner) || '—'}</td><td>${esc(asset.location) || '—'}</td></tr>`;
+    }).join('')}</tbody></table></div>
+    ${bulkAssets.length > preview.length ? `<div class="import-summary"><span>仅预览前 ${preview.length} 条</span></div>` : ''}
+    <button id="bulk-submit" class="btn-primary" style="margin-top:16px;width:100%" onclick="submitBulkImport()" ${invalidRows.length ? 'disabled' : ''}>导入 ${bulkAssets.length} 条资产</button>`;
+  if (invalidRows.length) {
+    document.getElementById('bulk-result').textContent = '电脑类资产须由 Agent 上报；请修正空名称或无效类型后重新选择文件。';
+  }
+}
+
+async function submitBulkImport() {
+  if (!bulkAssets.length) return;
+  const button = document.getElementById('bulk-submit');
+  button.disabled = true;
+  button.textContent = '正在导入...';
+  const response = await apiFetch('/api/assets/bulk', {
+    method: 'POST', body: JSON.stringify({ assets: bulkAssets })
+  });
+  if (!response) return;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    button.disabled = false;
+    button.textContent = `导入 ${bulkAssets.length} 条资产`;
+    showToast(data.error || '批量导入失败', true);
+    return;
+  }
+
+  await loadAssets();
+  const issues = [...(data.errors || []), ...(data.skipped || [])];
+  if (!issues.length) {
+    closeModal();
+    showToast(`批量导入完成：新增 ${data.created}，更新 ${data.updated}`);
+    return;
+  }
+  button.disabled = false;
+  button.textContent = `重新导入 ${bulkAssets.length} 条资产`;
+  document.getElementById('bulk-result').innerHTML =
+    `已新增 ${data.created}，更新 ${data.updated}；${issues.length} 条未处理。<br>` +
+    issues.slice(0, 8).map(item => `${esc(item.hostname || item.item?.hostname || '未命名')}：${esc(item.error || item.reason)}`).join('<br>');
+  showToast('批量导入部分完成，请查看错误明细', true);
+}
+
+function downloadBulkTemplate() {
+  downloadWithAuth('/api/template/bulk.csv', '批量导入模板.csv');
+}
+
+// ── Add/Edit Asset Modals ────────────────────────────────────────────────────
 function addAsset() {
   const departments=[...new Set(allAssets.map(a=>a.department).filter(Boolean))].sort();
   const owners=[...new Set(allAssets.map(a=>a.owner).filter(Boolean))].sort();
@@ -512,6 +708,7 @@ function addAsset() {
   document.getElementById('modal-icon').textContent='＋';
   document.getElementById('modal-body').innerHTML=`<div class="info-grid">
     <div class="info-item"><div class="key">资产类型</div><select id="new-type">${typeOptions('switch',false)}</select></div>
+    <div class="info-item"><div class="key">生命周期状态</div><select id="new-lifecycle">${lifecycleOptions('in_use')}</select></div>
     <div class="info-item"><div class="key">资产名称 *</div><input id="new-hostname" placeholder="如：核心交换机-01"></div>
     <div class="info-item"><div class="key">厂商</div><input id="new-manufacturer"></div>
     <div class="info-item"><div class="key">型号</div><input id="new-model"></div>
@@ -537,6 +734,7 @@ async function submitNewAsset() {
   const payload = {
     hostname,
     asset_type: document.getElementById('new-type').value,
+    lifecycle_status: document.getElementById('new-lifecycle').value,
     manufacturer: document.getElementById('new-manufacturer').value,
     model: document.getElementById('new-model').value,
     serial_number: document.getElementById('new-serial').value,
@@ -567,8 +765,10 @@ async function editAsset(id) {
   document.getElementById('modal-body').innerHTML = `
     <div class="info-grid">
       ${manual?`<div class="info-item"><div class="key">资产类型</div><select id="e-type">${typeOptions(a.asset_type,false)}</select></div>
+      <div class="info-item"><div class="key">生命周期状态</div><select id="e-lifecycle">${lifecycleOptions(a.lifecycle_status||'in_use')}</select></div>
       <div class="info-item"><div class="key">资产名称 *</div><input id="e-hostname" value="${esc(a.hostname)}"></div>`:
       `<div class="info-item"><div class="key">资产类型</div><div class="val">${typeMeta(a.asset_type)[0]}</div></div>
+      <div class="info-item"><div class="key">生命周期状态</div><select id="e-lifecycle">${lifecycleOptions(a.lifecycle_status||'in_use')}</select></div>
       <div class="info-item"><div class="key">资产名称</div><div class="val">${esc(a.hostname)}</div></div>`}
       <div class="info-item"><div class="key">厂商</div><input id="e-manufacturer" value="${esc(a.manufacturer)}"></div>
       <div class="info-item"><div class="key">型号</div><input id="e-model" value="${esc(a.model)}"></div>
@@ -597,6 +797,7 @@ async function saveAsset(id) {
     manufacturer: document.getElementById('e-manufacturer').value || null,
     model: document.getElementById('e-model').value || null,
     serial_number: document.getElementById('e-serial').value || null,
+    lifecycle_status: document.getElementById('e-lifecycle').value,
     department: document.getElementById('e-dept').value,
     owner: document.getElementById('e-owner').value,
     location: document.getElementById('e-loc').value,
@@ -653,7 +854,11 @@ async function deleteAsset(id) {
   }
 }
 
-function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+function closeModal(){
+  document.getElementById('modal').classList.remove('open');
+  document.querySelector('#modal .modal').classList.remove('modal-wide');
+  bulkAssets = [];
+}
 
 async function downloadWithAuth(url, filename) {
   try {

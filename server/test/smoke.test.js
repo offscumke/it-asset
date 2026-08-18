@@ -114,6 +114,7 @@ test('asset, QR, Ping and inventory workflows', async t => {
   assert.equal(manual.source, 'manual');
   assert.equal(manual.asset_type, 'firewall');
   assert.equal(manual.owner, 'Alice');
+  assert.equal(manual.lifecycle_status, 'in_use');
 
   const invalidIp = await fetch(`${baseUrl}/api/assets`, {
     method: 'POST',
@@ -121,6 +122,20 @@ test('asset, QR, Ping and inventory workflows', async t => {
     body: JSON.stringify({ hostname: 'invalid-ip', asset_type: 'switch', ip: '127.0.0.1;echo bad' })
   });
   assert.equal(invalidIp.status, 400);
+
+  const updateManualLifecycle = await fetch(`${baseUrl}/api/assets/${manual.id}`, {
+    method: 'PATCH',
+    headers: authHeaders,
+    body: JSON.stringify({ lifecycle_status: 'repair', notes: 'Primary edge, under maintenance' })
+  });
+  assert.equal(updateManualLifecycle.status, 200);
+  const manualLifecycle = await updateManualLifecycle.json();
+  assert.equal(manualLifecycle.lifecycle_status, 'repair');
+
+  const publicManual = await fetch(`${baseUrl}/api/public/assets/${manual.id}`);
+  assert.equal(publicManual.status, 200);
+  const publicManualData = await publicManual.json();
+  assert.equal(publicManualData.lifecycle_status, 'repair');
 
   const checkin = await fetch(`${baseUrl}/api/checkin`, {
     method: 'POST',
@@ -130,6 +145,7 @@ test('asset, QR, Ping and inventory workflows', async t => {
     },
     body: JSON.stringify({
       hostname: 'agent-laptop-01',
+      serial_number: 'AGENT-SN-001',
       platform: 'darwin',
       ip: '10.0.0.10',
       mac_address: 'AA:BB:CC:DD:EE:FF',
@@ -144,6 +160,62 @@ test('asset, QR, Ping and inventory workflows', async t => {
   });
   assert.equal(checkin.status, 200);
   const agentId = (await checkin.json()).id;
+
+  const macMatchedCheckin = await fetch(`${baseUrl}/api/checkin`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer agent:test-agent-secret',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      hostname: 'agent-laptop-ip',
+      platform: 'darwin',
+      ip: '10.0.0.10',
+      mac_address: 'aa-bb-cc-dd-ee-ff',
+      cpu: 'Test CPU',
+      cpu_cores: 8,
+      ram_total: 17179869184,
+      disk_total: 512000000000,
+      os: 'macOS',
+      os_version: '15.0'
+    })
+  });
+  assert.equal(macMatchedCheckin.status, 200);
+  assert.equal((await macMatchedCheckin.json()).id, agentId);
+
+  const renamedCheckin = await fetch(`${baseUrl}/api/checkin`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer agent:test-agent-secret',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      hostname: 'agent-laptop-renamed',
+      serial_number: 'agent-sn-001',
+      platform: 'darwin',
+      ip: '10.0.0.10',
+      mac_address: 'AA:BB:CC:DD:EE:FF',
+      cpu: 'Test CPU',
+      cpu_cores: 8,
+      ram_total: 17179869184,
+      ram_free: 8589934592,
+      disk_total: 512000000000,
+      disk_free: 256000000000,
+      os: 'macOS',
+      os_version: '15.0',
+      software: [{ name: 'Browser', version: '1.1' }]
+    })
+  });
+  assert.equal(renamedCheckin.status, 200);
+  assert.equal((await renamedCheckin.json()).id, agentId);
+
+  const renamedAgent = await fetch(`${baseUrl}/api/assets/${agentId}`, { headers: authHeaders });
+  assert.equal(renamedAgent.status, 200);
+  const renamedAgentData = await renamedAgent.json();
+  assert.equal(renamedAgentData.hostname, 'agent-laptop-renamed');
+  assert.equal(renamedAgentData.serial_number, 'AGENT-SN-001');
+  assert.equal(renamedAgentData.cpu, 'Test CPU');
+  assert.equal(renamedAgentData.ram_free, 8589934592);
 
   const assignAgent = await fetch(`${baseUrl}/api/assets/${agentId}`, {
     method: 'PATCH',
@@ -166,9 +238,48 @@ test('asset, QR, Ping and inventory workflows', async t => {
   const duplicateName = await fetch(`${baseUrl}/api/assets/${manual.id}`, {
     method: 'PATCH',
     headers: authHeaders,
-    body: JSON.stringify({ hostname: 'agent-laptop-01' })
+    body: JSON.stringify({ hostname: 'agent-laptop-renamed' })
   });
   assert.equal(duplicateName.status, 409);
+
+  const bulk = await fetch(`${baseUrl}/api/assets/bulk`, {
+    method: 'POST',
+    headers: authHeaders,
+    body: JSON.stringify({ assets: [
+      { hostname: 'branch-switch-01', asset_type: 'switch', ip: '10.0.1.10', department: 'IT', lifecycle_status: 'spare' },
+      { hostname: 'manual-computer', asset_type: 'computer' },
+      { hostname: 'invalid-bulk-ip', asset_type: 'firewall', ip: '10.0.0.1;bad' },
+      { hostname: 'agent-laptop-renamed', asset_type: 'switch', ip: '10.0.0.10' }
+    ] })
+  });
+  assert.equal(bulk.status, 200);
+  const bulkResult = await bulk.json();
+  assert.equal(bulkResult.created, 1);
+  assert.equal(bulkResult.updated, 0);
+  assert.equal(bulkResult.errors.length, 3);
+
+  const afterBulk = await fetch(`${baseUrl}/api/assets`, { headers: authHeaders });
+  const afterBulkAssets = await afterBulk.json();
+  const branchSwitch = afterBulkAssets.find(asset => asset.hostname === 'branch-switch-01');
+  assert.equal(branchSwitch.source, 'manual');
+  assert.equal(branchSwitch.asset_type, 'switch');
+  assert.equal(branchSwitch.lifecycle_status, 'spare');
+  const agentAfterBulk = afterBulkAssets.find(asset => asset.id === agentId);
+  assert.equal(agentAfterBulk.asset_type, 'computer');
+
+  const manualDetail = await fetch(`${baseUrl}/api/assets/${manual.id}`, { headers: authHeaders });
+  assert.equal(manualDetail.status, 200);
+  const manualDetailData = await manualDetail.json();
+  assert.equal(manualDetailData.lifecycle_status, 'repair');
+  assert.ok(Array.isArray(manualDetailData.events));
+  assert.ok(manualDetailData.events.length >= 2);
+  assert.equal(manualDetailData.events[0].action, 'manual_update');
+
+  const removeBulk = await fetch(`${baseUrl}/api/assets/${branchSwitch.id}`, {
+    method: 'DELETE',
+    headers: authHeaders
+  });
+  assert.equal(removeBulk.status, 200);
 
   const ping = await fetch(`${baseUrl}/api/assets/${manual.id}/ping`, {
     method: 'POST',

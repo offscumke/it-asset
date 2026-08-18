@@ -33,6 +33,31 @@ const ASSET_TYPES = new Set([
   'computer', 'server', 'switch', 'firewall', 'router',
   'wireless_ap', 'printer', 'storage', 'other'
 ]);
+const LIFECYCLE_LABELS = {
+  in_use: '在用',
+  spare: '备用',
+  repair: '维修',
+  loaned: '借出',
+  retired: '已报废',
+  lost: '丢失'
+};
+const LIFECYCLE_STATES = new Set(Object.keys(LIFECYCLE_LABELS));
+const ASSET_FIELD_LABELS = {
+  hostname: '资产名称',
+  asset_type: '资产类型',
+  manufacturer: '厂商',
+  model: '型号',
+  serial_number: '序列号',
+  ip: 'IP 地址',
+  mac_address: 'MAC 地址',
+  location: '位置',
+  department: '部门',
+  owner: '责任人',
+  asset_tag: '资产标签',
+  notes: '备注',
+  ping_enabled: 'Ping 监测',
+  lifecycle_status: '生命周期状态'
+};
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
@@ -80,6 +105,8 @@ db.exec(`
     model TEXT,
     serial_number TEXT,
     notes TEXT,
+    lifecycle_status TEXT DEFAULT 'in_use',
+    lifecycle_updated_at TEXT DEFAULT (datetime('now')),
     ping_enabled INTEGER DEFAULT 0,
     ping_status TEXT DEFAULT 'unknown',
     last_ping_at TEXT,
@@ -113,6 +140,14 @@ db.exec(`
     FOREIGN KEY(session_id) REFERENCES inventory_sessions(id),
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
+  CREATE TABLE IF NOT EXISTS asset_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    actor TEXT,
+    detail TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // Additive migration keeps databases created by earlier releases usable.
@@ -127,6 +162,8 @@ const assetColumns = {
   model: 'TEXT',
   serial_number: 'TEXT',
   notes: 'TEXT',
+  lifecycle_status: "TEXT DEFAULT 'in_use'",
+  lifecycle_updated_at: 'TEXT DEFAULT (datetime(\'now\'))',
   ping_enabled: 'INTEGER DEFAULT 0',
   ping_status: "TEXT DEFAULT 'unknown'",
   last_ping_at: 'TEXT',
@@ -141,8 +178,18 @@ for (const [name, definition] of Object.entries(assetColumns)) {
 db.exec(`
   UPDATE assets SET asset_type='computer' WHERE asset_type IS NULL OR asset_type='';
   UPDATE assets SET source='agent' WHERE source IS NULL OR source='';
+  UPDATE assets SET lifecycle_status='in_use' WHERE lifecycle_status IS NULL OR lifecycle_status='';
+  UPDATE assets SET lifecycle_updated_at=COALESCE(lifecycle_updated_at, created_at, datetime('now'))
+    WHERE lifecycle_updated_at IS NULL OR lifecycle_updated_at='';
   UPDATE assets SET ping_enabled=0 WHERE ping_enabled IS NULL;
   UPDATE assets SET ping_status='unknown' WHERE ping_status IS NULL OR ping_status='';
+`);
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_agent_serial
+  ON assets(lower(trim(serial_number)))
+  WHERE source='agent' AND serial_number IS NOT NULL AND trim(serial_number)<>'';
+  CREATE INDEX IF NOT EXISTS idx_asset_events_asset_created
+  ON asset_events(asset_id, created_at DESC, id DESC);
 `);
 
 function cleanText(value) {
@@ -156,6 +203,71 @@ function normalizeIp(value) {
   const ip = cleanText(value);
   if (ip && !net.isIP(ip)) throw new Error('IP 地址格式不正确');
   return ip;
+}
+
+function normalizeMac(value) {
+  const mac = cleanText(value);
+  return mac ? mac.toLowerCase().replace(/[.-]/g, ':') : null;
+}
+
+function normalizeSerial(value) {
+  const serial = cleanText(value);
+  return serial ? serial.toUpperCase() : null;
+}
+
+function normalizeLifecycleStatus(value) {
+  const status = cleanText(value);
+  if (!status) return 'in_use';
+  if (!LIFECYCLE_STATES.has(status)) throw new Error('资产状态不受支持');
+  return status;
+}
+
+function lifecycleLabel(status) {
+  return LIFECYCLE_LABELS[status] || LIFECYCLE_LABELS.in_use;
+}
+
+function preferredAgentHostname(existing, incoming) {
+  if (existing?.hostname && net.isIP(incoming) && !net.isIP(existing.hostname)) {
+    return existing.hostname;
+  }
+  return incoming;
+}
+
+function formatAssetValue(field, value) {
+  if (value === undefined || value === null || value === '') return '—';
+  if (field === 'ping_enabled') return value ? '开启' : '关闭';
+  if (field === 'lifecycle_status') return lifecycleLabel(value);
+  if (field === 'asset_type') {
+    return {
+      computer: '电脑',
+      server: '服务器',
+      switch: '交换机',
+      firewall: '防火墙',
+      router: '路由器',
+      wireless_ap: '无线 AP',
+      printer: '打印机',
+      storage: '存储',
+      other: '其他'
+    }[value] || value;
+  }
+  return String(value);
+}
+
+function summarizeAssetChanges(before, after, fields) {
+  const changes = [];
+  for (const field of fields) {
+    const previous = formatAssetValue(field, before?.[field]);
+    const next = formatAssetValue(field, after?.[field]);
+    if (previous !== next) {
+      changes.push(`${ASSET_FIELD_LABELS[field] || field}：${previous} → ${next}`);
+    }
+  }
+  return changes.join('；');
+}
+
+function recordAssetEvent(assetId, action, actor, detail) {
+  db.prepare('INSERT INTO asset_events (asset_id,action,actor,detail) VALUES (?,?,?,?)')
+    .run(assetId, action, actor || null, detail || null);
 }
 
 function assetOnlineStatus(asset) {
@@ -180,8 +292,8 @@ function publicAssetResponse(asset) {
   const fields = [
     'id', 'hostname', 'asset_type', 'source', 'manufacturer', 'model',
     'serial_number', 'ip', 'mac_address', 'location', 'department', 'owner',
-    'asset_tag', 'notes', 'online_status', 'last_seen', 'last_ping_at',
-    'ping_latency_ms'
+    'asset_tag', 'notes', 'lifecycle_status', 'lifecycle_updated_at',
+    'online_status', 'last_seen', 'last_ping_at', 'ping_latency_ms'
   ];
   return Object.fromEntries(fields.map(field => [field, row[field] ?? null]));
 }
@@ -231,29 +343,65 @@ app.post('/api/login', (req, res) => {
 
 // ── Agent check-in ────────────────────────────────────────────────────────────
 app.post('/api/checkin', requireAgentOrAuth, (req, res) => {
-  const d = req.body;
-  if (!d.hostname) return res.status(400).json({ error: 'hostname required' });
-  const existing = db.prepare('SELECT id FROM assets WHERE hostname=?').get(d.hostname);
+  const d = req.body || {};
+  const hostname = cleanText(d.hostname);
+  if (!hostname) return res.status(400).json({ error: 'hostname required' });
+  const sn = normalizeSerial(d.serial_number);
+  const macAddress = normalizeMac(d.mac_address);
+  const existingHostname = hostname;
+  let existing = sn
+    ? db.prepare("SELECT id,hostname,serial_number FROM assets WHERE source='agent' AND lower(trim(serial_number))=lower(trim(?))").get(sn)
+    : null;
+  if (!existing) {
+    existing = macAddress
+      ? db.prepare(`
+          SELECT id,hostname,serial_number FROM assets
+          WHERE source='agent' AND mac_address=?
+          ORDER BY CASE WHEN serial_number IS NOT NULL AND serial_number<>'' THEN 1 ELSE 0 END DESC,
+                   COALESCE(last_seen,created_at) DESC
+          LIMIT 1
+        `).get(macAddress)
+      : null;
+  }
+  if (!existing) {
+    const byHostname = db.prepare(
+      "SELECT id,hostname,serial_number FROM assets WHERE source='agent' AND hostname=?"
+    ).get(hostname);
+    if (byHostname && (!sn || !byHostname.serial_number || byHostname.serial_number === sn)) {
+      existing = byHostname;
+    }
+  }
   const id = existing ? existing.id : uuidv4();
   db.prepare(`
     INSERT INTO assets (id,hostname,platform,ip,mac_address,cpu,cpu_cores,
       ram_total,ram_free,disk_total,disk_free,os,os_version,vnc_port,
-      asset_type,source,ping_enabled,ping_status,last_seen)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'computer','agent',0,'unknown',datetime('now'))
+      asset_type,source,lifecycle_status,lifecycle_updated_at,ping_enabled,ping_status,
+      last_seen,serial_number)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'computer','agent','in_use',datetime('now'),0,'unknown',datetime('now'),?)
     ON CONFLICT(id) DO UPDATE SET
-      platform=excluded.platform,ip=excluded.ip,mac_address=excluded.mac_address,
+      hostname=excluded.hostname,platform=excluded.platform,ip=excluded.ip,
+      mac_address=COALESCE(excluded.mac_address,assets.mac_address),
       cpu=excluded.cpu,cpu_cores=excluded.cpu_cores,ram_total=excluded.ram_total,
       ram_free=excluded.ram_free,disk_total=excluded.disk_total,disk_free=excluded.disk_free,
-      os=excluded.os,os_version=excluded.os_version,vnc_port=excluded.vnc_port,
+      os=excluded.os,vnc_port=excluded.vnc_port,os_version=excluded.os_version,
       asset_type='computer',source='agent',ping_enabled=0,ping_status='unknown',
-      last_seen=datetime('now')
-  `).run(id,d.hostname,d.platform||null,d.ip||null,d.mac_address||null,
+      last_seen=datetime('now'),
+      serial_number=COALESCE(NULLIF(excluded.serial_number,''),assets.serial_number)
+  `).run(id,preferredAgentHostname(existing, hostname),d.platform||null,d.ip||null,macAddress,
     d.cpu||null,d.cpu_cores||null,d.ram_total||null,d.ram_free||null,
-    d.disk_total||null,d.disk_free||null,d.os||null,d.os_version||null,d.vnc_port||5900);
+    d.disk_total||null,d.disk_free||null,d.os||null,d.os_version||null,d.vnc_port||5900,sn);
+  const savedAsset = db.prepare('SELECT * FROM assets WHERE id=?').get(id);
   if (Array.isArray(d.software)) {
     db.prepare('DELETE FROM software WHERE asset_id=?').run(id);
     const ins = db.prepare('INSERT INTO software (asset_id,name,version) VALUES (?,?,?)');
     for (const s of d.software) ins.run(id, s.name, s.version || '');
+  }
+  if (!existing) {
+    recordAssetEvent(id, 'agent_create', 'agent',
+      `首次上报：${savedAsset.hostname}${sn ? ` / SN ${sn}` : ''}`);
+  } else if (existing.hostname !== existingHostname) {
+    recordAssetEvent(id, 'agent_rename', 'agent',
+      summarizeAssetChanges(existing, savedAsset, ['hostname']));
   }
   res.json({ id });
 });
@@ -271,6 +419,13 @@ app.get('/api/assets/:id', requireAuth, (req, res) => {
   const asset = db.prepare('SELECT * FROM assets WHERE id=?').get(req.params.id);
   if (!asset) return res.status(404).json({ error: 'not found' });
   asset.software = db.prepare('SELECT name,version FROM software WHERE asset_id=? ORDER BY name').all(asset.id);
+  asset.events = db.prepare(`
+    SELECT action,actor,detail,created_at
+    FROM asset_events
+    WHERE asset_id=?
+    ORDER BY created_at DESC, id DESC
+    LIMIT 8
+  `).all(asset.id);
   res.json(assetResponse(asset));
 });
 
@@ -297,21 +452,28 @@ app.post('/api/assets', requireAuth, (req, res) => {
   try { ip = normalizeIp(body.ip) ?? null; }
   catch (error) { return res.status(400).json({ error: error.message }); }
 
+  const serialNumber = normalizeSerial(body.serial_number);
+  const macAddress = normalizeMac(body.mac_address);
+  const lifecycleStatus = normalizeLifecycleStatus(body.lifecycle_status);
   const pingEnabled = body.ping_enabled === false ? 0 : (ip ? 1 : 0);
   const id = uuidv4();
   db.prepare(`
     INSERT INTO assets (
       id,hostname,asset_type,source,manufacturer,model,serial_number,ip,mac_address,
-      location,department,owner,asset_tag,notes,ping_enabled,ping_status
-    ) VALUES (?,?,?,'manual',?,?,?,?,?,?,?,?,?,?,?,'unknown')
+      location,department,owner,asset_tag,notes,lifecycle_status,lifecycle_updated_at,
+      ping_enabled,ping_status
+    ) VALUES (?,?,?,'manual',?,?,?,?,?,?,?,?,?,?,?,datetime('now'),?,'unknown')
   `).run(
     id, hostname, assetType, cleanText(body.manufacturer) ?? null, cleanText(body.model) ?? null,
-    cleanText(body.serial_number) ?? null, ip, cleanText(body.mac_address) ?? null,
+    serialNumber, ip, macAddress,
     cleanText(body.location) ?? null, cleanText(body.department) ?? null,
     cleanText(body.owner) ?? null, cleanText(body.asset_tag) ?? null,
-    cleanText(body.notes) ?? null, pingEnabled
+    cleanText(body.notes) ?? null, lifecycleStatus, pingEnabled
   );
-  res.status(201).json(assetResponse(db.prepare('SELECT * FROM assets WHERE id=?').get(id)));
+  const asset = db.prepare('SELECT * FROM assets WHERE id=?').get(id);
+  recordAssetEvent(id, 'manual_create', req.user?.sub || 'admin',
+    `手工录入：${formatAssetValue('asset_type', assetType)} · 状态 ${lifecycleLabel(lifecycleStatus)}`);
+  res.status(201).json(assetResponse(asset));
 });
 
 app.patch('/api/assets/:id', requireAuth, (req, res) => {
@@ -345,6 +507,11 @@ app.patch('/api/assets/:id', requireAuth, (req, res) => {
       values.push(value);
     }
   }
+  if (body.lifecycle_status !== undefined) {
+    const lifecycleStatus = normalizeLifecycleStatus(body.lifecycle_status);
+    updates.push('lifecycle_status=?', "lifecycle_updated_at=datetime('now')");
+    values.push(lifecycleStatus);
+  }
   if (body.asset_type !== undefined) {
     const assetType = cleanText(body.asset_type);
     if (!ASSET_TYPES.has(assetType)) return res.status(400).json({ error: '资产类型不受支持' });
@@ -374,8 +541,120 @@ app.patch('/api/assets/:id', requireAuth, (req, res) => {
       if (String(error.message).includes('UNIQUE')) return res.status(409).json({ error: '资产名称已存在' });
       throw error;
     }
+    const updated = db.prepare('SELECT * FROM assets WHERE id=?').get(req.params.id);
+    const summary = summarizeAssetChanges(asset, updated, [
+      'hostname', 'asset_type', 'manufacturer', 'model', 'serial_number',
+      'ip', 'mac_address', 'location', 'department', 'owner', 'asset_tag',
+      'notes', 'ping_enabled', 'lifecycle_status'
+    ]);
+    if (summary) {
+      recordAssetEvent(req.params.id, asset.source === 'manual' ? 'manual_update' : 'asset_update',
+        req.user?.sub || 'admin', summary);
+    }
   }
   res.json(assetResponse(db.prepare('SELECT * FROM assets WHERE id=?').get(req.params.id)));
+});
+
+// ── Bulk Import ───────────────────────────────────────────────────────────────
+app.post('/api/assets/bulk', requireAuth, (req, res) => {
+  const { assets } = req.body || {};
+  if (!Array.isArray(assets) || assets.length === 0) {
+    return res.status(400).json({ error: 'assets array required' });
+  }
+  if (assets.length > 500) {
+    return res.status(400).json({ error: '单次最多导入 500 条资产' });
+  }
+
+  const results = { created: 0, updated: 0, skipped: [], errors: [] };
+  const findByHostname = db.prepare('SELECT id,source FROM assets WHERE hostname=?');
+  const findBySerial = db.prepare('SELECT id,source FROM assets WHERE lower(trim(serial_number))=lower(trim(?))');
+  const insert = db.prepare(`
+    INSERT INTO assets (
+      id,hostname,asset_type,source,manufacturer,model,serial_number,ip,mac_address,
+      location,department,owner,asset_tag,notes,lifecycle_status,lifecycle_updated_at,
+      ping_enabled,ping_status
+    ) VALUES (?,?,?,'manual',?,?,?,?,?,?,?,?,?,?,?,datetime('now'),?,'unknown')
+  `);
+  const update = db.prepare(`
+    UPDATE assets SET
+      hostname=?,asset_type=?,manufacturer=?,model=?,serial_number=?,ip=?,mac_address=?,
+      location=?,department=?,owner=?,asset_tag=?,notes=?,lifecycle_status=?,
+      lifecycle_updated_at=datetime('now'),ping_enabled=?,
+      ping_status='unknown',last_ping_at=NULL,ping_latency_ms=NULL
+    WHERE id=?
+  `);
+
+  for (const item of assets) {
+    try {
+      const hostname = cleanText(item?.hostname);
+      const assetType = cleanText(item?.asset_type) || 'other';
+      if (!hostname) {
+        results.skipped.push({ reason: 'missing hostname', item });
+        continue;
+      }
+      if (!ASSET_TYPES.has(assetType)) {
+        results.errors.push({ hostname, error: '资产类型不受支持' });
+        continue;
+      }
+      if (assetType === 'computer') {
+        results.errors.push({ hostname, error: '电脑类资产请通过 Agent 自动上报' });
+        continue;
+      }
+
+      const serialNumber = normalizeSerial(item.serial_number);
+      const ip = normalizeIp(item.ip) ?? null;
+      const lifecycleStatus = normalizeLifecycleStatus(item.lifecycle_status);
+      const pingEnabled = item.ping_enabled === false ? 0 : (ip ? 1 : 0);
+      const byHostname = findByHostname.get(hostname);
+      const bySerial = serialNumber ? findBySerial.get(serialNumber) : null;
+      if ([byHostname, bySerial].some(asset => asset && asset.source !== 'manual')) {
+        results.errors.push({ hostname, error: '不能通过批量录入修改 Agent 资产' });
+        continue;
+      }
+      if (byHostname && bySerial && byHostname.id !== bySerial.id) {
+        results.errors.push({ hostname, error: '资产名称与序列号匹配到不同资产' });
+        continue;
+      }
+
+      const id = byHostname?.id || bySerial?.id || uuidv4();
+      const before = byHostname || bySerial
+        ? db.prepare('SELECT * FROM assets WHERE id=?').get(id)
+        : null;
+      const values = [
+        hostname, assetType, cleanText(item.manufacturer) ?? null,
+        cleanText(item.model) ?? null, serialNumber, ip,
+        cleanText(item.mac_address) ?? null, cleanText(item.location) ?? null,
+        cleanText(item.department) ?? null, cleanText(item.owner) ?? null,
+        cleanText(item.asset_tag) ?? null, cleanText(item.notes) ?? null,
+        lifecycleStatus, pingEnabled
+      ];
+      if (before) {
+        update.run(...values, id);
+        results.updated += 1;
+      } else {
+        insert.run(id, ...values);
+        results.created += 1;
+      }
+      if (id) {
+        const saved = db.prepare('SELECT * FROM assets WHERE id=?').get(id);
+        const summary = before
+          ? summarizeAssetChanges(before, saved, [
+              'hostname', 'asset_type', 'manufacturer', 'model', 'serial_number',
+              'ip', 'mac_address', 'location', 'department', 'owner', 'asset_tag',
+              'notes', 'ping_enabled', 'lifecycle_status'
+            ])
+          : `新增：${hostname} · ${formatAssetValue('asset_type', assetType)} · 状态 ${lifecycleLabel(lifecycleStatus)}`;
+        if (summary) {
+          recordAssetEvent(id, before ? 'bulk_update' : 'bulk_create',
+            req.user?.sub || 'admin', summary);
+        }
+      }
+    } catch (error) {
+      results.errors.push({ hostname: cleanText(item?.hostname) ?? '', error: error.message });
+    }
+  }
+
+  res.json(results);
 });
 
 app.post('/api/assets/:id/ping', requireAuth, async (req, res) => {
@@ -504,6 +783,12 @@ app.post('/api/inventory/:id/scan', (req, res) => {
     db.prepare('INSERT INTO inventory_records (session_id,asset_id,scanned_location,note,scanned_by) VALUES (?,?,?,?,?)')
       .run(req.params.id, asset_id, scanned_location||null, note||null, scanned_by||null);
   }
+  recordAssetEvent(asset_id, 'inventory_scan', scanned_by || req.user?.sub || 'mobile',
+    [
+      '盘点确认',
+      scanned_location ? `位置：${scanned_location}` : '',
+      note ? `备注：${note}` : ''
+    ].filter(Boolean).join(' · '));
   res.json({ ok: true, hostname: asset.hostname });
 });
 
@@ -518,8 +803,8 @@ app.get('/api/reports/assets.csv', requireAuth, (req, res) => {
   const rows = db.prepare('SELECT * FROM assets ORDER BY hostname').all();
   const cols = ['hostname','asset_type','source','manufacturer','model','serial_number',
     'platform','ip','mac_address','cpu','cpu_cores','ram_total','disk_total','os','os_version',
-    'location','department','owner','asset_tag','ping_enabled','ping_status','last_ping_at',
-    'ping_latency_ms','last_seen','created_at'];
+    'location','department','owner','asset_tag','lifecycle_status','lifecycle_updated_at',
+    'ping_enabled','ping_status','last_ping_at','ping_latency_ms','last_seen','created_at'];
   res.set('Content-Type','text/csv; charset=utf-8');
   res.set('Content-Disposition','attachment; filename="assets.csv"');
   res.set('Cache-Control','no-store');
@@ -532,7 +817,7 @@ app.get('/api/reports/inventory/:id.csv', requireAuth, (req, res) => {
   if (!session) return res.status(404).json({ error: 'not found' });
   const rows = db.prepare(`
     SELECT a.hostname, a.asset_type, a.asset_tag, a.department, a.owner, a.ip, a.platform, a.os,
-           r.scanned_location, r.note, r.scanned_by, r.scanned_at,
+           a.lifecycle_status, r.scanned_location, r.note, r.scanned_by, r.scanned_at,
            a.location as registered_location
     FROM inventory_records r JOIN assets a ON a.id=r.asset_id
     WHERE r.session_id=? ORDER BY r.scanned_at
@@ -540,7 +825,7 @@ app.get('/api/reports/inventory/:id.csv', requireAuth, (req, res) => {
 
   // Append un-scanned assets
   const scannedIds = new Set(rows.map(r => r.hostname));
-  const all = db.prepare('SELECT hostname,asset_type,asset_tag,department,owner,ip,platform,os,location FROM assets').all();
+  const all = db.prepare('SELECT hostname,asset_type,asset_tag,department,owner,ip,platform,os,location,lifecycle_status FROM assets').all();
   for (const a of all) {
     if (!scannedIds.has(a.hostname)) {
       rows.push({ ...a, registered_location: a.location,
@@ -548,7 +833,7 @@ app.get('/api/reports/inventory/:id.csv', requireAuth, (req, res) => {
     }
   }
   const cols = ['hostname','asset_type','asset_tag','department','owner','ip','platform','os',
-    'registered_location','scanned_location','note','scanned_by','scanned_at'];
+    'lifecycle_status','registered_location','scanned_location','note','scanned_by','scanned_at'];
   res.set('Content-Type','text/csv; charset=utf-8');
   res.set('Cache-Control','no-store');
   const fn = encodeURIComponent(`inventory-${session.name}.csv`);
@@ -569,7 +854,7 @@ app.get('/api/public/inventory/:id', (req, res) => {
   const session = db.prepare('SELECT id,name,status FROM inventory_sessions WHERE id=?').get(req.params.id);
   if (!session) return res.status(404).json({ error: '盘点场次不存在' });
   const assets = db.prepare(`
-    SELECT id,hostname,asset_type,ip,location,department,owner,asset_tag
+    SELECT id,hostname,asset_type,ip,location,department,owner,asset_tag,lifecycle_status
     FROM assets ORDER BY hostname
   `).all();
   const scanned = db.prepare('SELECT COUNT(*) as c FROM inventory_records WHERE session_id=?')
@@ -600,6 +885,34 @@ async function runPingSweep() {
   }
 }
 
+
+// Template for bulk import
+app.get('/api/template/bulk.csv', requireAuth, (req, res) => {
+  const columns = [
+    'hostname', 'asset_type', 'manufacturer', 'model', 'serial_number', 'ip',
+    'mac_address', 'location', 'department', 'owner', 'asset_tag', 'notes',
+    'lifecycle_status'
+  ];
+  const examples = [
+    {
+      hostname: '核心交换机', asset_type: 'switch', manufacturer: 'Huawei',
+      model: 'CE12800', serial_number: '210233A0ABCDEF', ip: '10.1.1.1',
+      mac_address: 'AA:BB:CC:DD:EE:FF', location: '机房 A', department: 'IT 部',
+      owner: '张三', asset_tag: 'SW001', notes: '网络核心设备', lifecycle_status: 'in_use'
+    },
+    {
+      hostname: '出口防火墙', asset_type: 'firewall', manufacturer: 'Fortinet',
+      model: 'FG-100F', serial_number: 'FGT100F000001', ip: '10.1.1.254',
+      mac_address: '', location: '机房 A', department: 'IT 部', owner: '李四',
+      asset_tag: 'FW001', notes: '互联网出口', lifecycle_status: 'spare'
+    }
+  ];
+  res.set('Content-Type','text/csv; charset=utf-8');
+  const filename = encodeURIComponent('批量导入模板.csv');
+  res.set('Content-Disposition',
+    `attachment; filename="asset-import-template.csv"; filename*=UTF-8''${filename}`);
+  res.send('\uFEFF' + toCSV(examples, columns));
+});
 // SPA fallback
 app.get('/asset', (req, res) => res.sendFile(path.join(__dirname, '../frontend/qr.html')));
 app.get('/scan', (req, res) => res.sendFile(path.join(__dirname, '../frontend/scan.html')));

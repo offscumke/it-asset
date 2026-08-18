@@ -53,6 +53,9 @@ const ASSET_TYPES = {
   firewall:['防火墙','FW'], router:['路由器','RT'], wireless_ap:['无线 AP','AP'],
   printer:['打印机','PR'], storage:['存储','ST'], other:['其他','OT']
 };
+const LIFECYCLE_TYPES = {
+  in_use:'在用', spare:'备用', repair:'维修', loaned:'借出', retired:'已报废', lost:'丢失'
+};
 const assetId=new URLSearchParams(location.search).get('id')||'';
 function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtDate(value){
@@ -66,6 +69,7 @@ function render(asset){
   const status=asset.online_status||'unknown';
   const statusLabel=status==='online'?'● 在线':status==='offline'?'○ 离线':'— 未检测';
   const checkedAt=asset.source==='manual'?asset.last_ping_at:asset.last_seen;
+  const lifecycle=LIFECYCLE_TYPES[asset.lifecycle_status||'in_use']||'在用';
   document.title=asset.hostname+' · 资产详情';
   document.getElementById('content').innerHTML=`
     <header class="header">
@@ -89,6 +93,7 @@ function render(asset){
       ${asset.notes?row('备注',esc(asset.notes)):''}
     </section>
     <section class="section state"><h2>状态</h2>
+      ${row('生命周期状态',lifecycle)}
       ${row(asset.source==='manual'?'最后 Ping':'最后上报',fmtDate(checkedAt))}
       ${asset.ping_latency_ms!=null?row('Ping 延迟',esc(asset.ping_latency_ms)+' ms'):''}
     </section>

@@ -87,6 +87,9 @@ let assets = [];
 let scanner = null;
 let scanning = false;
 const publicSessionMode = Boolean(currentSession);
+const LIFECYCLE_TYPES = {
+  in_use:'在用', spare:'备用', repair:'维修', loaned:'借出', retired:'已报废', lost:'丢失'
+};
 
 function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
@@ -184,12 +187,14 @@ function showAsset(id) {
   const box = document.getElementById('asset-info');
   if (!a) { box.className = 'asset-info hidden'; return; }
   const types={computer:'电脑',server:'服务器',switch:'交换机',firewall:'防火墙',router:'路由器',wireless_ap:'无线 AP',printer:'打印机',storage:'存储',other:'其他'};
+  const lifecycle=LIFECYCLE_TYPES[a.lifecycle_status||'in_use']||'在用';
   box.className = 'asset-info';
   box.innerHTML = `<div class="h">${types[a.asset_type]||'其他'} · ${esc(a.hostname)}</div>
     <div class="r">IP: ${esc(a.ip)||'—'}</div>
     <div class="r">登记位置: ${esc(a.location)||'未设置'}</div>
     <div class="r">部门: ${esc(a.department)||'—'} · 责任人: ${esc(a.owner)||'—'}</div>
     <div class="r">资产标签: ${esc(a.asset_tag)||'—'}</div>`;
+  box.innerHTML += `<div class="r">生命周期: ${esc(lifecycle)}</div>`;
   if (a.location) document.getElementById('loc-input').value = a.location;
 }
 

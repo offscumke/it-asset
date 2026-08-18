@@ -21,6 +21,60 @@ def get_mac():
     except Exception:
         return ""
 
+def get_serial_number():
+    """获取机器序列号 (SN)，用于跨网络识别同一台设备"""
+    def valid_serial(value):
+        value = (value or "").strip()
+        placeholders = {
+            "", "none", "unknown", "default string", "to be filled by o.e.m.",
+            "system serial number", "00000000", "0000000000000000"
+        }
+        return value[:128] if value.lower() not in placeholders else None
+
+    if sys.platform == "win32":
+        commands = [
+            [
+                'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                '(Get-CimInstance Win32_BIOS).SerialNumber'
+            ],
+            ['wmic', 'bios', 'get', 'serialnumber', '/value']
+        ]
+        for command in commands:
+            try:
+                result = subprocess.run(command, capture_output=True, text=True, timeout=5)
+                for line in result.stdout.strip().splitlines():
+                    serial = valid_serial(line.split('=', 1)[-1])
+                    if serial and serial.lower() != 'serialnumber':
+                        return serial
+            except Exception:
+                continue
+
+    elif sys.platform == "darwin":
+        try:
+            result = subprocess.run(
+                ['/usr/sbin/ioreg', '-rd1', '-c', 'IOPlatformExpertDevice'],
+                capture_output=True, text=True, timeout=5)
+            for line in result.stdout.splitlines():
+                if '"IOPlatformSerialNumber"' in line:
+                    serial = valid_serial(line.split('=', 1)[-1].strip().strip('"'))
+                    if serial:
+                        return serial
+        except Exception as e:
+            print(f"[Agent] SN 采集失败 (Mac): {e}")
+
+    elif sys.platform.startswith("linux"):
+        for filename in ('/sys/class/dmi/id/product_serial', '/sys/class/dmi/id/product_uuid'):
+            try:
+                with open(filename, encoding='utf-8') as serial_file:
+                    serial = valid_serial(serial_file.read())
+                    if serial:
+                        return serial
+            except (OSError, UnicodeError):
+                continue
+
+    # 不生成随机序列号；采集不到时由服务端稳定地使用主机名识别。
+    return None
+
 def get_cpu_info():
     cpu = platform.processor() or platform.machine() or "Unknown"
     if sys.platform == "darwin":
@@ -111,6 +165,7 @@ def collect_info(vnc_port):
         "platform": "darwin" if plat == "darwin" else "windows",
         "ip": get_ip(),
         "mac_address": get_mac(),
+        "serial_number": get_serial_number(),
         "os": platform.system(),
         "os_version": platform.version(),
         "vnc_port": vnc_port,
@@ -149,7 +204,7 @@ def main():
         try:
             info = collect_info(args.vnc_port)
             result = checkin(args.server, info, args.agent_secret)
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] OK — id:{result.get('id','?')} sw:{len(info['software'])}")
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] OK — id:{result.get('id','?')} sw:{len(info['software'])} sn:{info.get('serial_number','?')}")
         except Exception as e:
             print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] FAILED: {e}")
         if args.once:
