@@ -16,7 +16,8 @@ USER node
 
 ENV NODE_ENV=production \
     PORT=3001 \
-    DB_PATH=/data/assets.db
+    DB_PATH=/data/assets.db \
+    UPLOAD_DIR=/data/uploads
 
 EXPOSE 3001
 

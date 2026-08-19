@@ -54,7 +54,7 @@ const ASSET_TYPES = {
   printer:['打印机','PR'], storage:['存储','ST'], other:['其他','OT']
 };
 const LIFECYCLE_TYPES = {
-  in_use:'在用', spare:'备用', repair:'维修', loaned:'借出', retired:'已报废', lost:'丢失'
+  planned:'采购中', procured:'已采购', in_stock:'库存', in_use:'在用', spare:'备用', repair:'维修', loaned:'借出', transferred:'调拨中', retired:'已报废', recycled:'已回收', suspended:'已停用', lost:'丢失'
 };
 const assetId=new URLSearchParams(location.search).get('id')||'';
 function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -94,6 +94,7 @@ function render(asset){
     </section>
     <section class="section state"><h2>状态</h2>
       ${row('生命周期状态',lifecycle)}
+      ${row('保修到期',fmtDate(asset.warranty_expires_at))}
       ${row(asset.source==='manual'?'最后 Ping':'最后上报',fmtDate(checkedAt))}
       ${asset.ping_latency_ms!=null?row('Ping 延迟',esc(asset.ping_latency_ms)+' ms'):''}
     </section>

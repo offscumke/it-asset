@@ -6,6 +6,8 @@ project_dir="$(cd "$script_dir/.." && pwd)"
 backup_dir="$project_dir/backups"
 timestamp="$(date '+%Y%m%d-%H%M%S')"
 backup_path="$backup_dir/assets-$timestamp.db"
+attachment_archive="$backup_dir/attachments-$timestamp.tar.gz"
+temp_dir="$(mktemp -d)"
 cd "$project_dir"
 
 container_id="$(docker compose ps -q it-asset)"
@@ -22,14 +24,21 @@ restart_service() {
     docker compose start it-asset >/dev/null
   fi
 }
-trap restart_service EXIT
+cleanup() {
+  restart_service
+  rm -rf "$temp_dir"
+}
+trap cleanup EXIT
 
 if [[ "$was_running" == "true" ]]; then
   docker compose stop it-asset >/dev/null
 fi
 docker compose cp it-asset:/data/assets.db "$backup_path"
+docker compose cp it-asset:/data/uploads "$temp_dir/uploads"
+tar -czf "$attachment_archive" -C "$temp_dir" uploads
 
 echo "Backup created: $backup_path"
+echo "Attachments backup created: $attachment_archive"
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum "$backup_path"
 else

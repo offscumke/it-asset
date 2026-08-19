@@ -310,7 +310,9 @@ test('asset, QR, Ping and inventory workflows', async t => {
     body: JSON.stringify({ name: 'Smoke Inventory' })
   });
   assert.equal(createInventory.status, 200);
-  const sessionId = (await createInventory.json()).id;
+  const inventoryPayload = await createInventory.json();
+  const sessionId = inventoryPayload.id;
+  const scanToken = inventoryPayload.scan_token;
 
   const publicInventory = await fetch(`${baseUrl}/api/public/inventory/${sessionId}`);
   assert.equal(publicInventory.status, 200);
@@ -321,7 +323,7 @@ test('asset, QR, Ping and inventory workflows', async t => {
   const scan = await fetch(`${baseUrl}/api/inventory/${sessionId}/scan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ asset_id: manual.id, scanned_by: 'Tester' })
+    body: JSON.stringify({ asset_id: manual.id, scan_token: scanToken, scanned_by: 'Tester' })
   });
   assert.equal(scan.status, 200);
 
@@ -342,7 +344,7 @@ test('asset, QR, Ping and inventory workflows', async t => {
   const scanClosed = await fetch(`${baseUrl}/api/inventory/${sessionId}/scan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ asset_id: agentId })
+    body: JSON.stringify({ asset_id: agentId, scan_token: scanToken })
   });
   assert.equal(scanClosed.status, 400);
 

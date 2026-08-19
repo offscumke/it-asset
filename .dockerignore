@@ -6,3 +6,5 @@
 !server/index.js
 !frontend/
 !frontend/*.html
+!frontend/*.js
+!frontend/*.css

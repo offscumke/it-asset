@@ -1,255 +1,67 @@
-<!DOCTYPE html>
-<html lang="zh">
+<!doctype html>
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>资产盘点 · 扫码</title>
-<style>
-:root{
-  --bg:#090e13;--surface:#111820;--surface-2:#16212b;--border:#263543;--text:#edf4f8;
-  --muted:#93a4b1;--subtle:#667886;--teal:#2dd4bf;--blue:#60a5fa;--amber:#fbbf24;
-  --orange:#fb923c;--green:#34d399;--red:#fb7185
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:18px 14px;letter-spacing:0}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;max-width:480px;margin:0 auto 16px;box-shadow:0 18px 48px rgba(0,0,0,.28)}
-.scan-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-.scan-mark{width:40px;height:40px;border-radius:8px;display:grid;place-items:center;background:#3a2110;border:1px solid #7b421c;color:var(--orange);font-size:12px;font-weight:800}
-h1{font-size:19px;margin-bottom:3px}.sub{font-size:13px;color:var(--muted)}
-label{display:block;font-size:11px;color:var(--muted);margin:14px 0 7px;text-transform:uppercase;font-weight:800}
-input,select{width:100%;height:44px;background:#0b1117;border:1px solid var(--border);border-radius:8px;padding:0 12px;color:var(--text);font-size:14px;outline:none}
-input:focus,select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(45,212,191,.08)}
-button{width:100%;height:46px;border-radius:8px;padding:0 14px;font-size:14px;font-weight:760;cursor:pointer;margin-top:16px;transition:filter .15s,transform .15s}
-button:hover{filter:brightness(1.08)}button:active{transform:translateY(1px)}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
-button:disabled{cursor:not-allowed;opacity:.55}
-.btn-primary{background:var(--orange);color:#251104;border:1px solid #b85d1f}
-.btn-scan{background:#0c302d;color:var(--teal);border:1px solid #17675d}
-#reader{width:100%;border-radius:8px;overflow:hidden;margin-top:12px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0c2d22;color:var(--green);border:1px solid #176047;padding:12px 20px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;z-index:100;white-space:nowrap}
-.toast.show{opacity:1}
-.toast.err{background:#37161d;color:var(--red);border-color:#722635}
-.asset-info{background:#102a46;border:1px solid #23578b;border-radius:8px;padding:14px;margin-top:12px}
-.asset-info .h{font-size:15px;font-weight:750;color:var(--blue)}
-.asset-info .r{font-size:12px;color:#b8cee4;margin-top:5px}
-.hidden{display:none}
-.count{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.count-box{background:#0b1117;border:1px solid var(--border);border-radius:8px;padding:12px 6px;text-align:center;position:relative;overflow:hidden}
-.count-box::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:var(--count-color)}
-.count-box.total{--count-color:var(--blue)}.count-box.scanned{--count-color:var(--green)}.count-box.missing{--count-color:var(--red)}
-.count-box .n{font-size:23px;font-weight:780;color:var(--count-color)}
-.count-box .l{font-size:10px;color:var(--muted);margin-top:3px}
-@media(max-width:360px){.card{padding:16px}.count-box{padding:11px 4px}.count-box .n{font-size:20px}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="color-scheme" content="dark">
+  <title>资产盘点 · 扫码</title>
+  <style>
+    :root{--bg:#090e13;--surface:#111820;--surface-2:#16212b;--border:#263543;--text:#edf4f8;--muted:#93a4b1;--subtle:#667886;--teal:#2dd4bf;--orange:#fb923c;--orange-soft:#3a2110;--green:#34d399;--green-soft:#0c2d22;--red:#fb7185;--red-soft:#37161d;--blue:#60a5fa;--blue-soft:#102a46}
+    *{box-sizing:border-box}body{margin:0;min-width:320px;min-height:100vh;padding:18px 14px;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}button,input,select{font:inherit;letter-spacing:0}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--teal);outline-offset:2px}.card{width:min(480px,100%);margin:0 auto 16px;padding:20px;border:1px solid var(--border);border-radius:8px;background:var(--surface);box-shadow:0 18px 48px rgba(0,0,0,.28)}.scan-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}.scan-mark{width:40px;height:40px;display:grid;place-items:center;border:1px solid #7b421c;border-radius:8px;background:var(--orange-soft);color:var(--orange);font-size:12px;font-weight:850}h1{margin:0 0 3px;font-size:19px}.sub{color:var(--muted);font-size:13px}.count{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.count-box{position:relative;padding:12px 6px;border:1px solid var(--border);border-radius:7px;background:#0b1117;text-align:center;overflow:hidden}.count-box::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--count-color)}.count-box.total{--count-color:var(--blue)}.count-box.scanned{--count-color:var(--green)}.count-box.missing{--count-color:var(--red)}.count-box .n{color:var(--count-color);font-size:23px;font-weight:800}.count-box .l{margin-top:3px;color:var(--muted);font-size:10px}label{display:block;margin:15px 0 7px;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase}input,select{width:100%;height:44px;padding:0 12px;border:1px solid var(--border);border-radius:7px;outline:0;background:#0b1117;color:var(--text);font-size:14px}input:focus,select:focus{border-color:var(--teal)}button{width:100%;height:44px;margin-top:14px;padding:0 14px;border:1px solid transparent;border-radius:7px;font-size:14px;font-weight:760;cursor:pointer}button:hover{filter:brightness(1.08)}button:disabled{cursor:not-allowed;opacity:.5}.btn-scan{border-color:#17675d;background:#0c302d;color:var(--teal)}.btn-submit{border-color:#b85d1f;background:var(--orange);color:#251104}.reader-wrap{position:relative;margin-top:12px;border:1px solid var(--border);border-radius:7px;background:#05090c;overflow:hidden}.reader-wrap video{display:block;width:100%;max-height:310px;object-fit:cover}.reader-note{padding:12px;color:var(--subtle);font-size:12px;line-height:1.5;text-align:center}.asset-info{margin-top:12px;padding:14px;border:1px solid #23578b;border-radius:7px;background:var(--blue-soft)}.asset-info .h{color:var(--blue);font-size:15px;font-weight:760}.asset-info .r{margin-top:5px;color:#b8cee4;font-size:12px}.hidden{display:none!important}.toast{position:fixed;bottom:20px;left:50%;z-index:10;max-width:calc(100vw - 28px);padding:11px 16px;border:1px solid #176047;border-radius:7px;background:var(--green-soft);color:var(--green);font-size:13px;opacity:0;transform:translateX(-50%);transition:opacity .2s;white-space:nowrap}.toast.show{opacity:1}.toast.error{border-color:#722635;background:var(--red-soft);color:var(--red)}@media(max-width:360px){body{padding:12px 9px}.card{padding:16px}.count-box .n{font-size:20px}}
+  </style>
 </head>
 <body>
-<div class="card">
-  <div class="scan-header"><div class="scan-mark">IN</div><div><h1>资产盘点</h1><div class="sub" id="session-name">加载中…</div></div></div>
+  <main class="card">
+    <div class="scan-header"><div class="scan-mark">IN</div><div><h1>资产盘点</h1><div class="sub" id="session-name">正在读取盘点场次…</div></div></div>
+    <div class="count"><div class="count-box total"><div class="n" id="c-total">0</div><div class="l">资产总数</div></div><div class="count-box scanned"><div class="n" id="c-scanned">0</div><div class="l">已盘点</div></div><div class="count-box missing"><div class="n" id="c-missing">0</div><div class="l">未盘点</div></div></div>
 
-  <div class="count">
-    <div class="count-box total"><div class="n" id="c-total">0</div><div class="l">资产总数</div></div>
-    <div class="count-box scanned"><div class="n" id="c-scanned">0</div><div class="l">已盘点</div></div>
-    <div class="count-box missing"><div class="n" id="c-missing">0</div><div class="l">未盘点</div></div>
-  </div>
+    <label for="session-select">盘点场次</label>
+    <select id="session-select"></select>
+    <button class="btn-scan" id="scan-btn" type="button">开启摄像头扫码</button>
+    <div class="reader-wrap hidden" id="reader-wrap"><video id="reader" playsinline muted></video><div class="reader-note" id="reader-note">将资产二维码放入取景框。</div></div>
 
-  <label>盘点场次</label>
-  <select id="session-select" onchange="onSessionChange()"></select>
+    <label for="asset-select">或手动选择资产</label>
+    <select id="asset-select"><option value="">选择资产</option></select>
+    <div class="asset-info hidden" id="asset-info"></div>
+    <label for="loc-input">实际位置（覆盖登记位置）</label><input id="loc-input" placeholder="如：3 楼研发部 A12 工位">
+    <label for="note-input">备注</label><input id="note-input" placeholder="可选，如：外观正常">
+    <label for="by-input">盘点人</label><input id="by-input" placeholder="你的名字">
+    <button class="btn-submit" id="submit-btn" type="button">确认盘点</button>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    'use strict';
+    const params = new URLSearchParams(location.search);
+    const requestedSession = params.get('session') || '';
+    const scanToken = params.get('token') || '';
+    const authToken = localStorage.getItem('it_token') || '';
+    let currentSession = requestedSession;
+    let assets = [];
+    let stream = null;
+    let scanTimer = null;
+    let publicMode = Boolean(requestedSession && scanToken);
+    let toastTimer;
 
-  <button class="btn-scan" id="scan-btn" onclick="toggleScanner()">开启摄像头扫码</button>
-  <div id="reader"></div>
-
-  <label>或手动选择资产</label>
-  <select id="asset-select"><option value="">— 选择资产 —</option></select>
-
-  <div id="asset-info" class="asset-info hidden"></div>
-
-  <label>实际位置（覆盖登记位置）</label>
-  <input id="loc-input" placeholder="如：3楼研发部 A12 工位">
-
-  <label>备注</label>
-  <input id="note-input" placeholder="可选，如：外观正常">
-
-  <label>盘点人</label>
-  <input id="by-input" placeholder="你的名字">
-
-  <button class="btn-primary" id="submit-btn" onclick="submitScan()">确认盘点</button>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script>
-const params = new URLSearchParams(location.search);
-let currentSession = params.get('session') || '';
-let preselectAsset = params.get('id') || '';
-let token = localStorage.getItem('it_token') || '';
-let assets = [];
-let scanner = null;
-let scanning = false;
-const publicSessionMode = Boolean(currentSession);
-const LIFECYCLE_TYPES = {
-  in_use:'在用', spare:'备用', repair:'维修', loaned:'借出', retired:'已报废', lost:'丢失'
-};
-
-function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-
-function toast(msg, err) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (err ? ' err' : '');
-  setTimeout(() => t.className = 'toast', 2500);
-}
-
-async function api(path, opts={}) {
-  const headers = { 'Content-Type':'application/json', ...(opts.headers||{}) };
-  if (token) headers['Authorization'] = 'Bearer ' + token;
-  return fetch(path, { ...opts, headers });
-}
-
-async function loadSessions() {
-  const r = await api('/api/inventory');
-  if (!r.ok) { toast('请先在电脑端登录并创建盘点场次', true); return; }
-  const sessions = await r.json();
-  const open = sessions.filter(s => s.status === 'open');
-  const sel = document.getElementById('session-select');
-  sel.innerHTML = open.map(s => `<option value="${s.id}">${s.name}</option>`).join('')
-    || '<option value="">无进行中的盘点</option>';
-  if (currentSession) sel.value = currentSession;
-  else currentSession = sel.value;
-  updateSessionUI();
-}
-
-function applyStats(stats) {
-  document.getElementById('c-total').textContent = stats.total;
-  document.getElementById('c-scanned').textContent = stats.scanned;
-  document.getElementById('c-missing').textContent = stats.missing;
-}
-
-function populateAssets() {
-  const sel = document.getElementById('asset-select');
-  sel.innerHTML = '<option value="">— 选择资产 —</option>' +
-    assets.map(a => `<option value="${a.id}">${esc(a.hostname)} (${esc(a.ip)||'无IP'})</option>`).join('');
-  sel.onchange = () => showAsset(sel.value);
-  if (preselectAsset) { sel.value = preselectAsset; showAsset(preselectAsset); }
-}
-
-async function loadPublicInventory(showError=true) {
-  const r = await api(`/api/public/inventory/${encodeURIComponent(currentSession)}`);
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    if (showError) toast(data.error || '无法读取盘点场次', true);
-    return false;
-  }
-  const sel = document.getElementById('session-select');
-  sel.innerHTML = `<option value="${data.session.id}">${esc(data.session.name)}</option>`;
-  sel.value = data.session.id;
-  sel.disabled = true;
-  document.getElementById('session-name').textContent = data.session.name;
-  assets = data.assets;
-  populateAssets();
-  applyStats(data.stats);
-  const closed = data.session.status === 'closed';
-  document.getElementById('submit-btn').disabled = closed;
-  document.getElementById('submit-btn').textContent = closed ? '盘点已结束' : '确认盘点';
-  if (closed && showError) toast('该盘点场次已经结束', true);
-  return true;
-}
-
-function updateSessionUI() {
-  const sel = document.getElementById('session-select');
-  document.getElementById('session-name').textContent =
-    sel.options[sel.selectedIndex]?.text || '请选择盘点场次';
-  loadStats();
-}
-
-function onSessionChange() {
-  currentSession = document.getElementById('session-select').value;
-  updateSessionUI();
-}
-
-async function loadStats() {
-  if (!currentSession) return;
-  if (publicSessionMode) { await loadPublicInventory(false); return; }
-  const r = await api(`/api/inventory/${currentSession}/stats`);
-  if (!r.ok) return;
-  applyStats(await r.json());
-}
-
-async function loadAssets() {
-  const r = await api('/api/assets');
-  if (!r.ok) return;
-  assets = await r.json();
-  populateAssets();
-}
-
-function showAsset(id) {
-  const a = assets.find(x => x.id === id);
-  const box = document.getElementById('asset-info');
-  if (!a) { box.className = 'asset-info hidden'; return; }
-  const types={computer:'电脑',server:'服务器',switch:'交换机',firewall:'防火墙',router:'路由器',wireless_ap:'无线 AP',printer:'打印机',storage:'存储',other:'其他'};
-  const lifecycle=LIFECYCLE_TYPES[a.lifecycle_status||'in_use']||'在用';
-  box.className = 'asset-info';
-  box.innerHTML = `<div class="h">${types[a.asset_type]||'其他'} · ${esc(a.hostname)}</div>
-    <div class="r">IP: ${esc(a.ip)||'—'}</div>
-    <div class="r">登记位置: ${esc(a.location)||'未设置'}</div>
-    <div class="r">部门: ${esc(a.department)||'—'} · 责任人: ${esc(a.owner)||'—'}</div>
-    <div class="r">资产标签: ${esc(a.asset_tag)||'—'}</div>`;
-  box.innerHTML += `<div class="r">生命周期: ${esc(lifecycle)}</div>`;
-  if (a.location) document.getElementById('loc-input').value = a.location;
-}
-
-function toggleScanner() {
-  if (scanning) { stopScanner(); return; }
-  if (typeof Html5Qrcode === 'undefined') { toast('扫码库加载失败，请检查网络', true); return; }
-  scanner = new Html5Qrcode('reader');
-  scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 250 },
-    (decoded) => {
-      let id = decoded;
-      try { const u = new URL(decoded); id = u.searchParams.get('id') || decoded; } catch {}
-      document.getElementById('asset-select').value = id;
-      showAsset(id);
-      toast('已识别: ' + (assets.find(a=>a.id===id)?.hostname || id));
-      stopScanner();
-    }, () => {});
-  scanning = true;
-  document.getElementById('scan-btn').textContent = '✕ 关闭摄像头';
-}
-
-function stopScanner() {
-  if (scanner) scanner.stop().then(()=>scanner.clear()).catch(()=>{});
-  scanning = false;
-  document.getElementById('scan-btn').textContent = '开启摄像头扫码';
-}
-
-async function submitScan() {
-  const asset_id = document.getElementById('asset-select').value;
-  if (!asset_id) { toast('请选择或扫描一个资产', true); return; }
-  if (!currentSession) { toast('请选择盘点场次', true); return; }
-  const r = await api(`/api/inventory/${currentSession}/scan`, {
-    method: 'POST',
-    body: JSON.stringify({
-      asset_id,
-      scanned_location: document.getElementById('loc-input').value,
-      note: document.getElementById('note-input').value,
-      scanned_by: document.getElementById('by-input').value
-    })
-  });
-  const d = await r.json();
-  if (!r.ok) { toast(d.error || '提交失败', true); return; }
-  toast('已盘点: ' + d.hostname);
-  document.getElementById('note-input').value = '';
-  document.getElementById('asset-select').value = '';
-  document.getElementById('asset-info').className = 'asset-info hidden';
-  loadStats();
-}
-
-(async () => {
-  if (publicSessionMode) await loadPublicInventory();
-  else {
-    await loadSessions();
-    await loadAssets();
-  }
-})();
-</script>
+    const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const lifecycle = {in_use:'在用',in_stock:'库存',spare:'备用',repair:'维修',loaned:'借出',retired:'已报废',lost:'丢失',disabled:'已禁用'};
+    const typeLabels = {computer:'电脑',server:'服务器',switch:'交换机',firewall:'防火墙',router:'路由器',wireless_ap:'无线 AP',printer:'打印机',storage:'存储',other:'其他'};
+    function toast(message, error) { const node=document.getElementById('toast'); node.textContent=message; node.className='toast show'+(error?' error':''); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{node.className='toast'},2800); }
+    async function api(path, options) { const opts={cache:'no-store',...(options||{})}; const headers=new Headers(opts.headers||{}); if(authToken)headers.set('Authorization','Bearer '+authToken); if(opts.body instanceof FormData===false && opts.body && typeof opts.body!=='string'){headers.set('Content-Type','application/json');opts.body=JSON.stringify(opts.body)} opts.headers=headers; return fetch(path,opts); }
+    function applyStats(stats) { document.getElementById('c-total').textContent=stats.total??stats.expected_count??0; document.getElementById('c-scanned').textContent=stats.scanned??stats.scanned_count??0; document.getElementById('c-missing').textContent=stats.missing??stats.missing_count??0; }
+    function populateAssets() { const select=document.getElementById('asset-select'); select.innerHTML='<option value="">选择资产</option>'+assets.map((asset)=>`<option value="${esc(asset.id)}">${esc(asset.hostname||asset.asset_tag||asset.id)} (${esc(asset.ip||'无 IP')})</option>`).join(''); }
+    function showAsset(id) { const asset=assets.find((item)=>item.id===id); const box=document.getElementById('asset-info'); if(!asset){box.className='asset-info hidden';return} box.className='asset-info'; box.innerHTML=`<div class="h">${esc(typeLabels[asset.asset_type]||'其他')} · ${esc(asset.hostname)}</div><div class="r">IP：${esc(asset.ip||'—')}</div><div class="r">登记位置：${esc(asset.location||'未设置')}</div><div class="r">部门：${esc(asset.department||'—')} · 责任人：${esc(asset.owner||'—')}</div><div class="r">资产标签：${esc(asset.asset_tag||'—')} · 生命周期：${esc(lifecycle[asset.lifecycle_status]||asset.lifecycle_status||'—')}</div>`; if(asset.location&&!document.getElementById('loc-input').value)document.getElementById('loc-input').value=asset.location; }
+    async function loadPublic() { const response=await api(`/api/public/inventory/${encodeURIComponent(currentSession)}`); const data=await response.json().catch(()=>({})); if(!response.ok)throw new Error(data.error||'无法读取盘点场次'); document.getElementById('session-select').innerHTML=`<option value="${esc(data.session.id)}">${esc(data.session.name)}</option>`; document.getElementById('session-select').disabled=true; document.getElementById('session-name').textContent=data.session.name; assets=data.assets||[]; populateAssets(); applyStats(data.stats||{}); document.getElementById('submit-btn').disabled=data.session.status!=='open'; if(data.session.status!=='open')toast('该盘点场次已经结束',true); }
+    async function loadAuthenticated() { const response=await api('/api/inventory'); if(!response.ok)throw new Error('请先在电脑端登录并创建盘点场次'); const sessions=await response.json(); const open=sessions.filter((item)=>item.status==='open'); const select=document.getElementById('session-select'); select.innerHTML=open.map((item)=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')||'<option value="">无进行中的盘点</option>'; if(currentSession)select.value=currentSession; currentSession=select.value; if(!currentSession)return; document.getElementById('session-name').textContent=select.options[select.selectedIndex]?.text||'盘点场次'; const assetsResponse=await api('/api/assets'); assets=assetsResponse.ok?await assetsResponse.json():[]; populateAssets(); await loadStats(); }
+    async function loadStats() { if(!currentSession)return; const response=await api(`/api/inventory/${encodeURIComponent(currentSession)}/stats`); if(response.ok)applyStats(await response.json()); }
+    async function submitScan() { const assetId=document.getElementById('asset-select').value; if(!assetId||!currentSession){toast('请选择或扫描资产',true);return} const body={asset_id:assetId,scanned_location:document.getElementById('loc-input').value,note:document.getElementById('note-input').value,scanned_by:document.getElementById('by-input').value}; if(scanToken)body.scan_token=scanToken; const response=await api(`/api/inventory/${encodeURIComponent(currentSession)}/scan`,{method:'POST',body}); const data=await response.json().catch(()=>({})); if(!response.ok){toast(data.error||'提交失败',true);return} toast(`已盘点：${data.hostname||assetId}`); document.getElementById('note-input').value=''; document.getElementById('asset-select').value=''; document.getElementById('asset-info').className='asset-info hidden'; await loadStats(); }
+    function stopScanner() { if(scanTimer){clearInterval(scanTimer);scanTimer=null} if(stream){stream.getTracks().forEach((track)=>track.stop());stream=null} document.getElementById('reader-wrap').className='reader-wrap hidden'; document.getElementById('scan-btn').textContent='开启摄像头扫码'; }
+    async function startScanner() { if(!('mediaDevices' in navigator)&&!navigator.mediaDevices?.getUserMedia){toast('当前浏览器不支持摄像头',true);return} if(!('BarcodeDetector' in window)){toast('当前浏览器不支持原生二维码识别，请手动选择资产',true);return} try { const detector=new BarcodeDetector({formats:['qr_code']}); stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}}); const video=document.getElementById('reader'); video.srcObject=stream; await video.play(); document.getElementById('reader-wrap').className='reader-wrap'; document.getElementById('scan-btn').textContent='关闭摄像头扫码'; scanTimer=setInterval(async()=>{try{const codes=await detector.detect(video); if(!codes.length)return; let decoded=codes[0].rawValue||''; try{decoded=new URL(decoded,location.origin).searchParams.get('id')||decoded}catch(_){} document.getElementById('asset-select').value=decoded; showAsset(decoded); toast('已识别资产'); stopScanner()}catch(_){ }},500); } catch(error){stopScanner();toast(error.message||'无法打开摄像头',true)} }
+    document.getElementById('asset-select').addEventListener('change',(event)=>showAsset(event.target.value));
+    document.getElementById('session-select').addEventListener('change',async(event)=>{currentSession=event.target.value;document.getElementById('session-name').textContent=event.target.options[event.target.selectedIndex]?.text||'盘点场次';await loadStats()});
+    document.getElementById('scan-btn').addEventListener('click',()=>scanTimer?stopScanner():startScanner());
+    document.getElementById('submit-btn').addEventListener('click',submitScan);
+    window.addEventListener('beforeunload',stopScanner);
+    (async()=>{try{if(publicMode)await loadPublic();else await loadAuthenticated()}catch(error){toast(error.message,true);document.getElementById('session-name').textContent=error.message}})();
+  </script>
 </body>
 </html>

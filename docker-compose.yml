@@ -12,6 +12,7 @@ services:
       NODE_ENV: production
       PORT: 3001
       DB_PATH: /data/assets.db
+      UPLOAD_DIR: /data/uploads
       ADMIN_USER: ${ADMIN_USER:-admin}
       ADMIN_PASS: ${ADMIN_PASS:?ADMIN_PASS is required}
       AGENT_SECRET: ${AGENT_SECRET:?AGENT_SECRET is required}

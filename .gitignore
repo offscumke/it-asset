@@ -10,6 +10,7 @@ server/*.db
 server/*.db-shm
 server/*.db-wal
 data/
+uploads/
 backups/
 
 agent/build/

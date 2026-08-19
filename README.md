@@ -1,12 +1,17 @@
 # IT 资产管理系统
 
-一个轻量的 IT 资产管理系统，包含 Web 管理端、SQLite 数据库和 Windows/macOS 采集 Agent。支持资产自动上报、手工资产、生命周期状态、变更记录、Ping 在线检测、部门与责任人归属、盘点场次、二维码、CSV 导出和 VNC 链接。
+一个单公司内部 IT 资产管理系统，包含 Web 管理端、SQLite 数据库和 Windows/macOS 采集 Agent。支持资产自动上报、手工资产、四类角色权限、完整生命周期申请与审批、全局审计、附件、工单、通知、保修提醒、采购成本与账面价值、盘点快照与差异闭环、二维码、CSV 报表、VNC 链接和 AD/MDM/SNMP/云资产集成配置框架。
 
 ## 资产录入方式
 
 - 电脑由 Agent 自动上报硬件、系统和软件信息，管理端可补充部门、责任人、位置和资产标签。
 - 服务器、交换机、防火墙、路由器、无线 AP、打印机、存储及其他资产在管理端手工录入。
 - 管理端可维护资产生命周期状态，并在详情页查看最近变更记录。
+- 管理端支持管理员、资产管理员、审计员和普通员工四类角色；普通员工只能查看本人资产并提交相关请求。
+- 采购、入库、领用、归还、借用、维修、调拨、报废、回收、停用和启用均通过生命周期申请留下审批与审计记录。
+- 资产和工单支持受保护附件；工单支持负责人、优先级、状态、评论和通知。
+- 盘点场次会冻结资产快照，扫码使用场次 token，位置差异、漏盘和意外资产需要处理后才能结案。
+- AD、MDM、SNMP、AWS、Azure、GCP 和 Webhook 以适配器配置与同步记录形式管理；未提供外部环境和凭据前不会伪造同步结果。
 - 手工资产配置 IP 后可启用 Ping 监测；后台按固定间隔更新在线状态，也可在资产列表中立即检测。
 - 资产二维码是公开只读链接，扫码后可查看类型、归属、位置和在线状态，不提供编辑权限。
 
@@ -24,7 +29,7 @@ Linux + Docker Compose
 SQLite named volume (/data/assets.db)
 ```
 
-生产容器使用非 root 用户运行，只增加 Ping 所需的 `NET_RAW` capability。数据库、环境密钥、依赖目录和构建产物不会提交到 Git。
+生产容器使用非 root 用户运行，只增加 Ping 所需的 `NET_RAW` capability。数据库、环境密钥、附件目录、依赖目录和构建产物不会提交到 Git。
 
 ## Linux 快速部署
 
@@ -71,6 +76,7 @@ curl http://127.0.0.1:3001/api/health
 | `TRUST_PROXY` | `0` | 位于可信反向代理后时设为 `1` |
 | `CORS_ORIGIN` | 空 | 仅在分离部署前端时设置允许的浏览器来源 |
 | `PING_INTERVAL_SECONDS` | `60` | 手工资产后台 Ping 检测间隔，最小 15 秒 |
+| `UPLOAD_DIR` | `/data/uploads` | 附件存储目录，生产环境应位于持久化数据卷 |
 
 修改 `.env` 后重新应用：
 
@@ -156,11 +162,11 @@ docker compose up -d
 ./scripts/backup.sh
 ```
 
-备份保存到本机 `backups/`，脚本会短暂停止服务、复制数据库、恢复服务，并输出 SHA-256。恢复时：
+备份保存到本机 `backups/`，脚本会短暂停止服务、复制数据库和附件目录、恢复服务，并输出数据库 SHA-256。恢复数据库和附件时：
 
 ```bash
 docker compose stop it-asset
-./scripts/import-db.sh backups/assets-YYYYMMDD-HHMMSS.db
+./scripts/import-db.sh backups/assets-YYYYMMDD-HHMMSS.db backups/attachments-YYYYMMDD-HHMMSS.tar.gz
 docker compose up -d
 ```
 
@@ -190,6 +196,8 @@ npm start
 ```
 
 访问 `http://localhost:3001`，默认账号为 `admin` / `admin123`。这些默认值不会在 `NODE_ENV=production` 下生效。
+
+本地附件默认保存到 `server/uploads/`；生产 Docker 部署保存到 `/data/uploads`，与 SQLite 共用 `it_asset_data` 数据卷。单个附件最大 8 MB，仅允许 PDF、图片、文本、CSV、ZIP 和 XLSX。
 
 ## 验证
 
